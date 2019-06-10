@@ -1,5 +1,11 @@
 import keras
+import tensorflow as tf
 from keras.utils import Sequence
+from keras.models import Sequential
+from keras.layers import *
+from keras.layers.core import *
+from keras.layers.convolutional import Conv2D
+from keras.optimizers import SGD, RMSprop
 from skimage.io import imread
 from skimage.transform import resize
 import numpy as np
@@ -56,6 +62,23 @@ class My_Generator(Sequence):
 
         return np.array(X), np.array(Y)
 
+
+def create_base_network(in_dim):
+    """ Base network to be shared (eq. to feature extraction).
+    """
+    model = Sequential()
+    model.add(Conv2D(8, kernel_size=(5, 5), strides=(1, 1),
+                    activation='relu',
+                    input_shape=(200, 200)))
+    model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
+    model.add(Conv2D(16, (5, 5), activation='relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Flatten())
+    model.add(Dense(1000, activation='relu'))
+
+    return model
+
+
 files = os.listdir("../VeRi/VeRi_with_plate/image_train")
 files_perm = copy(files)
 random.shuffle(files_perm)
@@ -79,7 +102,17 @@ validation_filenames = []
 GT_validation = []
 
 my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
-my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
+
+input1 = Sequential()
+input2 = Sequential()
+input1.add(Layer(input_shape=(200, 200)))
+input2.add(Layer(input_shape=(200, 200)))
+
+base_network = create_base_network(in_dim)
+add_shared_layer(base_network, [input1, input2])
+
+
+# my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
 
 model.fit_generator(generator=my_training_batch_generator,
                                         steps_per_epoch=(num_training_samples // batch_size),
