@@ -3,6 +3,9 @@ from keras.utils import Sequence
 from skimage.io import imread
 from skimage.transform import resize
 import numpy as np
+import os
+import random
+from copy import copy
 
 class My_Generator(Sequence):
 
@@ -15,11 +18,58 @@ class My_Generator(Sequence):
 
     def __getitem__(self, idx):
         batch_x = self.image_filenames[idx * self.batch_size:(idx + 1) * self.batch_size]
-        batch_y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        j = 0
+        label = 1
+        pos = True
+        X = []
+        Y = []
+        while j < len(range(batch_x)):
+            each = batch_x[j]
+            img = resize(imread(each), (1, 200, 200))
 
-        return np.array([
-            resize(imread(file_name), (200, 200))
-               for file_name in batch_x]), np.array(batch_y)
+            range_here = type_dict[img]
+            if pos:
+                while True:
+                    ind = random.randrange(*range_here)
+                    each_2 = files[ind]
+                    if (each_2 != each): break
+                
+                img_2 = resize(imread(each_2), (1, 200, 200))
+                pos = False
+            else:
+                
+                while True:
+                    ind = random.randrange(0,len(files))
+                    if ind not in range(*range_here): break
+
+                
+                label = 0
+                pos = True
+                j+=1
+
+            X.append(np.concatenate((img, img_2), axis = 0))
+            Y.append(label)
+
+
+
+        # batch_y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+        return np.array(X), np.array(Y)
+
+files = os.listdir("../VeRi/VeRi_with_plate/image_train")
+files_perm = copy(files)
+random.shuffle(files_perm)
+files_first_name = [f.split("_")[0] for f in files]
+type_dict = {}
+i_start = 0
+name_now = files_first_name[0]
+for i in range(len(files_first_name)):
+    if(files_first_name[i] != name_now):
+        type_dict[name_now]=(i_start, i)
+        name_now = files_first_name[i]
+        i_start = i + 1
+
+type_dict[files_first_name[-1]] = len(files_first_name)
 
 training_filenames = []
 GT_training = []
@@ -28,7 +78,7 @@ batch_size = 1
 validation_filenames = []
 GT_validation = []
 
-my_training_batch_generator = My_Generator(training_filenames, GT_training, batch_size)
+my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
 my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
 
 model.fit_generator(generator=my_training_batch_generator,
