@@ -1,73 +1,80 @@
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import *
-from tensorflow.python.keras.layers.core import *
-from tensorflow.keras.optimizers import SGD, RMSprop
-from tensorflow.keras import backend as K
-from tensorflow.keras.models import *
+from keras.models import Sequential
+from keras.layers import *
+from keras.layers.core import *
+from keras.optimizers import SGD, RMSprop
+from keras import backend as K
+from keras.models import *
 
-from tensorflow.keras.utils import Sequence
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import *
-from tensorflow.python.keras.layers.core import *
-from tensorflow.python.keras.layers.convolutional import Conv2D
-from tensorflow.keras.optimizers import SGD, RMSprop
+from keras.utils import Sequence
+from keras.models import Sequential
+from keras.layers import *
+from keras.layers.core import *
+from keras.layers.convolutional import Conv2D
+from keras.optimizers import SGD, RMSprop
 from skimage.io import imread
 from skimage.transform import resize
 import numpy as np
 import os
 import random
 from copy import copy
+import pudb
 
-input_shape = (200, 200)
+batch_size = 2
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-class My_Generator(Sequence):
+input_shape = (200, 200, 3)
 
-    def __init__(self, image_filenames, labels, batch_size):
-        self.image_filenames, self.labels = image_filenames, labels
-        self.batch_size = batch_size
-
-    def __len__(self):
-        return int(np.ceil(len(self.image_filenames) / float(self.batch_size)))
-
-    def __getitem__(self, idx):
-        batch_x = self.image_filenames[idx * self.batch_size:(idx + 1) * self.batch_size]
-        j = 0
+def get_data(image_filenames):
+    batch_x = image_filenames
+    j = 0
+    pos = True
+    X = []
+    Y = []
+    count = 0
+    while j < len(batch_x):
+        # print str(j)+"/"+str(len(batch_x))
         label = 1
-        pos = True
-        X = []
-        Y = []
-        while j < len(range(batch_x)):
-            each = batch_x[j]
-            img = resize(imread(each), (1, 200, 200))
+        if (count == 0 and pos):
+            X = []
+            Y = []
+        each = batch_x[j]
+        img = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each), (200, 200))
+        # pu.db
 
-            range_here = type_dict[img]
-            if pos:
-                while True:
-                    ind = random.randrange(*range_here)
-                    each_2 = files[ind]
-                    if (each_2 != each): break
-                
-                img_2 = resize(imread(each_2), (1, 200, 200))
-                pos = False
-            else:
-                
-                while True:
-                    ind = random.randrange(0,len(files))
-                    if ind not in range(*range_here): break
+        range_here = type_dict[each.split("_")[0]]
+        if pos:
+            while True:
+                ind = random.randrange(*range_here)
+                each_2 = files[ind]
+                if (each_2 != each): break
+            
+            img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (200, 200))
+            pos = False
+        else:
+            count +=1
+            
+            while True:
+                ind = random.randrange(0,len(files))
+                if ind not in range(*range_here): break
 
-                
-                label = 0
-                pos = True
-                j+=1
+            
+            label = 0
+            pos = True
+            j+=1
 
-            X.append(np.concatenate((img, img_2), axis = 0))
-            Y.append(label)
+        # pu.db
+
+        X.append(np.concatenate((img.reshape(1, 200, 200, 3), img_2.reshape(1, 200, 200, 3)), axis = 0))
+        Y.append(label)
 
 
 
-        # batch_y = self.labels[idx * self.batch_size:(idx + 1) * self.batch_size]
+        # batch_y = labels[idx * batch_size:(idx + 1) * batch_size]
 
-        return np.array(X), np.array(Y)
+        if (count == batch_size):
+            count = 0
+            yield np.array(X), np.array(Y)
 
 def euclidean_distance(vects):
     x, y = vects
@@ -103,16 +110,24 @@ def create_base_network(in_dim):
     x = MaxPooling2D(pool_size=(2, 2))(x)
     x = Flatten()(x)
     x = Dense(1000, activation='relu')(x)
-
-    model.add(Conv2D(16, (5, 5), activation='relu'))
-    model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Flatten())
-    model.add(Dense(1000, activation='relu'))
-
     return Model(input, x)
 
 
+def compute_accuracy(y_true, y_pred):
+    '''Compute classification accuracy with a fixed threshold on distances.
+    '''
+    pred = y_pred.ravel() < 0.5
+    return np.mean(pred == y_true)
+
+
+def accuracy(y_true, y_pred):
+    '''Compute classification accuracy with a fixed threshold on distances.
+    '''
+    return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
+
+
 files = os.listdir("../VeRi/VeRi_with_plate/image_train")
+files.sort()
 files_perm = copy(files)
 random.shuffle(files_perm)
 files_first_name = [f.split("_")[0] for f in files]
@@ -121,20 +136,20 @@ i_start = 0
 name_now = files_first_name[0]
 for i in range(len(files_first_name)):
     if(files_first_name[i] != name_now):
+        print(name_now, i_start, i)
         type_dict[name_now]=(i_start, i)
         name_now = files_first_name[i]
         i_start = i + 1
 
-type_dict[files_first_name[-1]] = len(files_first_name)
+type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
 
 training_filenames = []
 GT_training = []
-batch_size = 1
 
 validation_filenames = []
 GT_validation = []
 
-my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
+# my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
 
 base_network = create_base_network(input_shape)
 
@@ -158,16 +173,22 @@ model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 
 
 # my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
-
-model.fit_generator(generator=my_training_batch_generator,
-                                        steps_per_epoch=(num_training_samples // batch_size),
-                                        epochs=num_epochs,
+num_training_samples = len(files)
+# for x,y in get_data(files_perm):
+#     pu.db
+#     break
+model.summary()
+counter = 1
+for x,y in get_data(files_perm):
+    print("\n\n\n"+str(counter)+"/"+str(num_training_samples))
+    model.fit(x=[x[:,0], x[:,1]], y=y, batch_size=batch_size,
+                                        epochs=1,
                                         verbose=1,
-                                        validation_data=my_validation_batch_generator,
-                                        validation_steps=(num_validation_samples // batch_size),
-                                        use_multiprocessing=True,
-                                        workers=16,
-                                        max_queue_size=32)
+                                        # use_multiprocessing=True,
+                                        # workers=16,
+                                        # max_queue_size=32
+    )
+    counter+=1
 
 
 

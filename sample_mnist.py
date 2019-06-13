@@ -6,14 +6,14 @@ np.random.seed(1337)  # for reproducibility
 import random
 import tensorflow as tf
 
-from tensorflow.keras.datasets import mnist
-from tensorflow.keras.models import Sequential
+from keras.datasets import mnist
+from keras.models import Sequential
 # from keras.layers.core import add_shared_layer
-from tensorflow.keras.layers import *
-from tensorflow.python.keras.layers.core import *
-from tensorflow.keras.optimizers import SGD, RMSprop
-from tensorflow.keras import backend as K
-from tensorflow.keras.models import *
+from keras.layers import *
+from keras.layers.core import *
+from keras.optimizers import SGD, RMSprop
+from keras import backend as K
+from keras.models import *
 import pudb
 
 
@@ -98,7 +98,6 @@ input_shape = x_train.shape[1:]
 # create training+test positive and negative pairs
 digit_indices = [np.where(y_train == i)[0] for i in range(num_classes)]
 tr_pairs, tr_y = create_pairs(x_train, digit_indices)
-
 digit_indices = [np.where(y_test == i)[0] for i in range(num_classes)]
 te_pairs, te_y = create_pairs(x_test, digit_indices)
 
@@ -118,6 +117,7 @@ distance = Lambda(euclidean_distance,
                   output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model([input_a, input_b], distance)
+pu.db
 
 # train
 rms = RMSprop()
