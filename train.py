@@ -21,7 +21,7 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 1000 * 4
+batch_size = 100 * 4
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -188,7 +188,7 @@ checkpointer = ModelCheckpoint(monitor='loss', filepath="check.h5", verbose=True
                                    save_best_only = True)
 model.fit_generator(generator=get_data(files_perm),
                                     steps_per_epoch=(num_training_samples * 2 // (batch_size)),
-                                    epochs=2,
+                                    epochs=100,
                                     verbose=1,
                                     # validation_data=my_validation_batch_generator,
                                     # validation_steps=(num_validation_samples // batch_size),
