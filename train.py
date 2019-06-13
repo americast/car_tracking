@@ -11,6 +11,8 @@ from keras.layers import *
 from keras.layers.core import *
 from keras.layers.convolutional import Conv2D
 from keras.optimizers import SGD, RMSprop
+from keras.utils.training_utils import multi_gpu_model
+from keras.callbacks import ModelCheckpoint
 from skimage.io import imread
 from skimage.transform import resize
 import numpy as np
@@ -19,7 +21,7 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 2
+batch_size = 1000 * 4
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -167,6 +169,7 @@ distance = Lambda(euclidean_distance,
                   output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model([input_a, input_b], distance)
+model = multi_gpu_model(model, gpus=4)
 
 # train
 rms = RMSprop()
@@ -179,22 +182,20 @@ num_training_samples = len(files)
 #     pu.db
 #     break
 model.summary()
-counter = 1
 
 
-
-for x,y in get_data(files_perm):
-    print("\n\n\n"+str(counter)+"/"+str(num_training_samples))
-    model.fit_generator(generator=get_data(files_perm),
-                                        steps_per_epoch=(num_training_samples * 2 // batch_size),
-                                        epochs=2,
-                                        verbose=1,
-                                        # validation_data=my_validation_batch_generator,
-                                        # validation_steps=(num_validation_samples // batch_size),
-                                        use_multiprocessing=True,
-                                        workers=16,
-                                        max_queue_size=32)
-    counter+=1
+checkpointer = ModelCheckpoint(monitor='loss', filepath="check.h5", verbose=True,
+                                   save_best_only = True)
+model.fit_generator(generator=get_data(files_perm),
+                                    steps_per_epoch=(num_training_samples * 2 // (batch_size)),
+                                    epochs=2,
+                                    verbose=1,
+                                    # validation_data=my_validation_batch_generator,
+                                    # validation_steps=(num_validation_samples // batch_size),
+                                    use_multiprocessing=True,
+                                    workers=16,
+                                    max_queue_size=32,
+                                    callbacks=[checkpointer])
 
 
 
