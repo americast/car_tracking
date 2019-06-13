@@ -73,8 +73,9 @@ def get_data(image_filenames):
         # batch_y = labels[idx * batch_size:(idx + 1) * batch_size]
 
         if (count == batch_size):
+            X_arr = np.array(X)
             count = 0
-            yield np.array(X), np.array(Y)
+            yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
 
 def euclidean_distance(vects):
     x, y = vects
@@ -179,15 +180,20 @@ num_training_samples = len(files)
 #     break
 model.summary()
 counter = 1
+
+
+
 for x,y in get_data(files_perm):
     print("\n\n\n"+str(counter)+"/"+str(num_training_samples))
-    model.fit(x=[x[:,0], x[:,1]], y=y, batch_size=batch_size,
-                                        epochs=1,
+    model.fit_generator(generator=get_data(files_perm),
+                                        steps_per_epoch=(num_training_samples * 2 // batch_size),
+                                        epochs=2,
                                         verbose=1,
-                                        # use_multiprocessing=True,
-                                        # workers=16,
-                                        # max_queue_size=32
-    )
+                                        # validation_data=my_validation_batch_generator,
+                                        # validation_steps=(num_validation_samples // batch_size),
+                                        use_multiprocessing=True,
+                                        workers=16,
+                                        max_queue_size=32)
     counter+=1
 
 
