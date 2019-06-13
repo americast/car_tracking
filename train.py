@@ -21,7 +21,7 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 100
+batch_size = 20
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -131,6 +131,7 @@ def accuracy(y_true, y_pred):
 
 files = os.listdir("../VeRi/VeRi_with_plate/image_train")
 files.sort()
+files = files[:160]
 files_perm = copy(files)
 random.shuffle(files_perm)
 files_first_name = [f.split("_")[0] for f in files]
@@ -169,11 +170,11 @@ distance = Lambda(euclidean_distance,
                   output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model([input_a, input_b], distance)
-model = multi_gpu_model(model, gpus=4)
+model_gpu = multi_gpu_model(model, gpus=4)
 
 # train
 rms = RMSprop()
-model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
+model_gpu.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 
 
 # my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
@@ -181,22 +182,25 @@ num_training_samples = len(files)
 # for x,y in get_data(files_perm):
 #     pu.db
 #     break
-model.summary()
+model_gpu.summary()
 
 
 checkpointer = ModelCheckpoint(monitor='loss', filepath="check.h5", verbose=True,
                                    save_best_only = True)
 print("Here")
-model.fit_generator(generator=get_data(files_perm),
-                                    steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
-                                    epochs=100,
-                                    verbose=1,
-                                    # validation_data=my_validation_batch_generator,
-                                    # validation_steps=(num_validation_samples // batch_size),
-                                    use_multiprocessing=True,
-                                    workers=16,
-                                    max_queue_size=32,
-                                    callbacks=[checkpointer])
+# pu.db
+for _ in range(100):
+    model_gpu.fit_generator(generator=get_data(files_perm),
+                                        steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
+                                        epochs=1,
+                                        verbose=1,
+                                        # validation_data=my_validation_batch_generator,
+                                        # validation_steps=(num_validation_samples // batch_size),
+                                        use_multiprocessing=True,
+                                        workers=16,
+                                        max_queue_size=32)
+
+    model.save("check.h5")
 
 
 
