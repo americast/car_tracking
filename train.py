@@ -21,7 +21,7 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 100 * 4
+batch_size = 100
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -137,15 +137,15 @@ files_first_name = [f.split("_")[0] for f in files]
 type_dict = {}
 i_start = 0
 name_now = files_first_name[0]
-for i in range(len(files_first_name)):
+for i in range(1, len(files_first_name)):
     if(files_first_name[i] != name_now):
         print(name_now, i_start, i)
         type_dict[name_now]=(i_start, i)
         name_now = files_first_name[i]
-        i_start = i + 1
+        i_start = i
 
 type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
-
+# pu.db
 training_filenames = []
 GT_training = []
 
@@ -186,8 +186,9 @@ model.summary()
 
 checkpointer = ModelCheckpoint(monitor='loss', filepath="check.h5", verbose=True,
                                    save_best_only = True)
+print("Here")
 model.fit_generator(generator=get_data(files_perm),
-                                    steps_per_epoch=(num_training_samples * 2 // (batch_size)),
+                                    steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
                                     epochs=100,
                                     verbose=1,
                                     # validation_data=my_validation_batch_generator,
