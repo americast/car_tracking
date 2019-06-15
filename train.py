@@ -13,6 +13,7 @@ from keras.layers.convolutional import Conv2D
 from keras.optimizers import SGD, RMSprop
 from keras.utils.training_utils import multi_gpu_model
 from keras.callbacks import ModelCheckpoint
+from keras.applications.vgg19 import VGG19
 from skimage.io import imread
 from skimage.transform import resize
 import numpy as np
@@ -25,7 +26,7 @@ batch_size = 8
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-input_shape = (200, 200, 3)
+input_shape = (224, 224, 3)
 
 def get_data(image_filenames):
     batch_x = image_filenames
@@ -104,18 +105,19 @@ def contrastive_loss(y_true, y_pred):
 def create_base_network(in_dim):
     """ Base network to be shared (eq. to feature extraction).
     """
-    input = Input(shape=input_shape)
+    # input = Input(shape=input_shape)
 
-    x = Conv2D(8, kernel_size=(5, 5), strides=(1, 1),
-                    activation='relu',
-                    input_shape=(input_shape[0], input_shape[1]))(input)
+    # x = Conv2D(8, kernel_size=(5, 5), strides=(1, 1),
+    #                 activation='relu',
+    #                 input_shape=(input_shape[0], input_shape[1]))(input)
 
-    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-    x = Conv2D(16, (5, 5), activation='relu')(x)
-    x = MaxPooling2D(pool_size=(2, 2))(x)
-    x = Flatten()(x)
-    x = Dense(1000, activation='relu')(x)
-    return Model(input, x)
+    # x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # x = Conv2D(16, (5, 5), activation='relu')(x)
+    # x = MaxPooling2D(pool_size=(2, 2))(x)
+    # x = Flatten()(x)
+    # x = Dense(1000, activation='relu')(x)
+    model = VGG19(weights="imagenet")
+    return Model(inputs=model.input, outputs=model.get_layer('fc1').output)
 
 
 def compute_accuracy(y_true, y_pred):
