@@ -21,9 +21,9 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 20
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+batch_size = 8
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 input_shape = (200, 200, 3)
 
@@ -41,7 +41,7 @@ def get_data(image_filenames):
             X = []
             Y = []
         each = batch_x[j]
-        img = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each), (200, 200))
+        img = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each), (input_shape[0], input_shape[1]))
         # pu.db
 
         range_here = type_dict[each.split("_")[0]]
@@ -51,7 +51,7 @@ def get_data(image_filenames):
                 each_2 = files[ind]
                 if (each_2 != each): break
             
-            img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (200, 200))
+            img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (input_shape[0], input_shape[1]))
             pos = False
         else:
             count +=1
@@ -60,6 +60,8 @@ def get_data(image_filenames):
                 ind = random.randrange(0,len(files))
                 if ind not in range(*range_here): break
 
+            each_2 = files[ind]
+            img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (input_shape[0], input_shape[1]))
             
             label = 0
             pos = True
@@ -67,7 +69,7 @@ def get_data(image_filenames):
 
         # pu.db
 
-        X.append(np.concatenate((img.reshape(1, 200, 200, 3), img_2.reshape(1, 200, 200, 3)), axis = 0))
+        X.append(np.concatenate((img.reshape(1, input_shape[0], input_shape[1], 3), img_2.reshape(1, input_shape[0], input_shape[1], 3)), axis = 0))
         Y.append(label)
 
 
@@ -106,7 +108,7 @@ def create_base_network(in_dim):
 
     x = Conv2D(8, kernel_size=(5, 5), strides=(1, 1),
                     activation='relu',
-                    input_shape=(200, 200))(input)
+                    input_shape=(input_shape[0], input_shape[1]))(input)
 
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
     x = Conv2D(16, (5, 5), activation='relu')(x)
@@ -170,7 +172,8 @@ distance = Lambda(euclidean_distance,
                   output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model([input_a, input_b], distance)
-model_gpu = multi_gpu_model(model, gpus=4)
+# model_gpu = multi_gpu_model(model, gpus=4)
+model_gpu = model
 
 # train
 rms = RMSprop()
@@ -181,6 +184,7 @@ model_gpu.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 num_training_samples = len(files)
 # for x,y in get_data(files_perm):
 #     pu.db
+
 #     break
 model_gpu.summary()
 
@@ -189,7 +193,16 @@ checkpointer = ModelCheckpoint(monitor='loss', filepath="check.h5", verbose=True
                                    save_best_only = True)
 print("Here")
 # pu.db
-for _ in range(100):
+for _ in range(10000):
+    print _
+    if _ % 50 == 0:
+        for x in get_data(files_perm):
+          print "Prediction: "
+          out = model.predict(x[0])
+          print("out: "+str(out))
+          print("orig: "+str(x[1]))
+
+          
     model_gpu.fit_generator(generator=get_data(files_perm),
                                         steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
                                         epochs=1,
@@ -200,7 +213,8 @@ for _ in range(100):
                                         workers=16,
                                         max_queue_size=32)
 
-    model.save("check.h5")
+    # model.save("check.h5")
+    model_gpu.save("check.h5")
 
 
 
