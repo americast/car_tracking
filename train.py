@@ -23,8 +23,8 @@ from copy import copy
 import pudb
 
 batch_size = 8
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 input_shape = (224, 224, 3)
 
@@ -174,8 +174,8 @@ distance = Lambda(euclidean_distance,
                   output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model([input_a, input_b], distance)
-# model_gpu = multi_gpu_model(model, gpus=4)
-model_gpu = model
+model_gpu = multi_gpu_model(model, gpus=4)
+#model_gpu = model
 
 # train
 rms = RMSprop()
@@ -215,8 +215,8 @@ for _ in range(10000):
                                         workers=16,
                                         max_queue_size=32)
 
-    # model.save("check.h5")
-    model_gpu.save("check.h5")
+    model.save("check.h5")
+    #model_gpu.save("check.h5")
 
 
 
