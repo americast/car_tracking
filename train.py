@@ -13,7 +13,7 @@ from keras.layers.convolutional import Conv2D
 from keras.optimizers import SGD, RMSprop
 from keras.utils.training_utils import multi_gpu_model
 from keras.callbacks import ModelCheckpoint
-from keras.applications.vgg19 import VGG19
+from keras.applications.resnet50 import ResNet50
 from skimage.io import imread
 from skimage.transform import resize
 import numpy as np
@@ -116,8 +116,10 @@ def create_base_network(in_dim):
     # x = MaxPooling2D(pool_size=(2, 2))(x)
     # x = Flatten()(x)
     # x = Dense(1000, activation='relu')(x)
-    model = VGG19(weights="imagenet")
-    return Model(inputs=model.input, outputs=model.get_layer('fc1').output)
+    # return Model(input, x)
+    model = ResNet50(weights="imagenet")
+    print(model.summary())
+    return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
 
 
 def compute_accuracy(y_true, y_pred):
