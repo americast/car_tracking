@@ -22,9 +22,9 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 400
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+batch_size = 8
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+#os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 input_shape = (224, 224, 3)
 
@@ -137,7 +137,7 @@ def accuracy(y_true, y_pred):
 
 files = os.listdir("../VeRi/VeRi_with_plate/image_train")
 files.sort()
-files = files
+# files = files[:160]
 files_perm = copy(files)
 random.shuffle(files_perm)
 files_first_name = [f.split("_")[0] for f in files]
@@ -177,7 +177,7 @@ distance = Lambda(euclidean_distance,
 
 model = Model([input_a, input_b], distance)
 model_gpu = multi_gpu_model(model, gpus=4)
-# model_gpu = model
+#model_gpu = model
 
 # train
 rms = RMSprop()
@@ -218,7 +218,7 @@ for _ in range(10000):
                                         max_queue_size=32)
 
     model.save("check.h5")
-    # model_gpu.save("check.h5")
+    #model_gpu.save("check.h5")
 
 
 
