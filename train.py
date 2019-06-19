@@ -1,3 +1,5 @@
+choice = raw_input("Would you like to load an existing model? (<model_file_name>/n): ")
+tv = raw_input("Train or validate? (t/v): ")
 from keras.models import Sequential
 from keras.layers import *
 from keras.layers.core import *
@@ -22,13 +24,14 @@ import random
 from copy import copy
 import pudb
 
-batch_size = 8
+EPOCHS = 10000
+batch_size = 56
 #os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 #os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 input_shape = (224, 224, 3)
 
-def get_data(image_filenames):
+def get_data(image_filenames, type_dict, files, tv = 't'):
     batch_x = image_filenames
     j = 0
     pos = True
@@ -42,7 +45,10 @@ def get_data(image_filenames):
             X = []
             Y = []
         each = batch_x[j]
-        img = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each), (input_shape[0], input_shape[1]))
+        if tv == 't':
+            img = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each), (input_shape[0], input_shape[1]))
+        else:
+            img = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each), (input_shape[0], input_shape[1]))
         # pu.db
 
         range_here = type_dict[each.split("_")[0]]
@@ -52,7 +58,10 @@ def get_data(image_filenames):
                 each_2 = files[ind]
                 if (each_2 != each): break
             
-            img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (input_shape[0], input_shape[1]))
+            if tv == 't':
+                img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (input_shape[0], input_shape[1]))
+            else:
+                img_2 = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each_2), (input_shape[0], input_shape[1]))
             pos = False
         else:
             count +=1
@@ -62,7 +71,10 @@ def get_data(image_filenames):
                 if ind not in range(*range_here): break
 
             each_2 = files[ind]
-            img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (input_shape[0], input_shape[1]))
+            if tv == 't':
+                img_2 = resize(imread("../VeRi/VeRi_with_plate/image_train/"+each_2), (input_shape[0], input_shape[1]))
+            else:
+                img_2 = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each_2), (input_shape[0], input_shape[1]))
             
             label = 0
             pos = True
@@ -81,6 +93,8 @@ def get_data(image_filenames):
             X_arr = np.array(X)
             count = 0
             yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
+
+            
 
 def euclidean_distance(vects):
     x, y = vects
@@ -134,7 +148,7 @@ def accuracy(y_true, y_pred):
     '''
     return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
-
+#### Training images
 files = os.listdir("../VeRi/VeRi_with_plate/image_train")
 files.sort()
 # files = files[:160]
@@ -152,6 +166,27 @@ for i in range(1, len(files_first_name)):
         i_start = i
 
 type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
+
+#### Validation images
+files_val = os.listdir("../VeRi/VeRi_with_plate/image_test")
+files_val.sort()
+# files_val = files_val[:160]
+files_perm_val = copy(files_val)
+random.shuffle(files_perm_val)
+files_first_name_val = [f_val.split("_")[0] for f_val in files_val]
+type_dict_val = {}
+i_start_val = 0
+name_now_val = files_first_name_val[0]
+for i_val in range(1, len(files_first_name_val)):
+    if(files_first_name_val[i_val] != name_now_val):
+        print(name_now_val, i_start_val, i_val)
+        type_dict_val[name_now_val]=(i_start_val, i_val)
+        name_now_val = files_first_name_val[i_val]
+        i_start_val = i_val
+
+type_dict_val[files_first_name_val[-1]] = (i_start_val, len(files_first_name_val))
+
+
 # pu.db
 training_filenames = []
 GT_training = []
@@ -160,7 +195,7 @@ validation_filenames = []
 GT_validation = []
 
 # my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
-
+# print("Would you like to load an existing model? (y/n)")
 base_network = create_base_network(input_shape)
 
 input_a = Input(shape=input_shape)
@@ -173,9 +208,11 @@ processed_a = base_network(input_a)
 processed_b = base_network(input_b)
 
 distance = Lambda(euclidean_distance,
-                  output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+                output_shape=eucl_dist_output_shape)([processed_a, processed_b])
 
 model = Model([input_a, input_b], distance)
+if choice != 'n' and choice != 'N':
+    model.load_weights(choice)
 model_gpu = multi_gpu_model(model, gpus=4)
 #model_gpu = model
 
@@ -186,6 +223,7 @@ model_gpu.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
 
 # my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
 num_training_samples = len(files)
+num_validation_samples = len(files_val)
 # for x,y in get_data(files_perm):
 #     pu.db
 
@@ -193,32 +231,35 @@ num_training_samples = len(files)
 model_gpu.summary()
 
 
-checkpointer = ModelCheckpoint(monitor='loss', filepath="check.h5", verbose=True,
+checkpointer = ModelCheckpoint(monitor='acc', filepath="check.h5", verbose=True,
                                    save_best_only = True)
 print("Here")
 # pu.db
-for _ in range(10000):
-    print _
-    if _ % 50 == 0:
-        for x in get_data(files_perm):
-          print "Prediction: "
-          out = model.predict(x[0])
-          print("out: "+str(out))
-          print("orig: "+str(x[1]))
+if tv == 'v' or tv == 'V':
+    model_gpu.evaluate_generator(get_data(files_perm_val, type_dict_val, files_val, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32)
+else:
+    for _ in xrange(EPOCHS):
+        print _
+        # if _ % 50 == 0:
+        #     for x in get_data(files_perm):
+        #       print "Prediction: "
+        #       out = model.predict(x[0])
+        #       print("out: "+str(out))
+        #       print("orig: "+str(x[1]))
 
-          
-    model_gpu.fit_generator(generator=get_data(files_perm),
-                                        steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
-                                        epochs=1,
-                                        verbose=1,
-                                        # validation_data=my_validation_batch_generator,
-                                        # validation_steps=(num_validation_samples // batch_size),
-                                        use_multiprocessing=True,
-                                        workers=16,
-                                        max_queue_size=32)
+            
+        model_gpu.fit_generator(generator=get_data(files_perm, type_dict, files),
+                                            steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
+                                            epochs=1,
+                                            verbose=1,
+                                            validation_data=get_data(files_perm_val, type_dict_val, files_val, 'v'),
+                                            validation_steps=(num_validation_samples // batch_size * 4),
+                                            use_multiprocessing=True,
+                                            workers=16,
+                                            max_queue_size=32)
 
-    model.save("check.h5")
-    #model_gpu.save("check.h5")
+        model.save_weights("check_weights.h5")
+        #model_gpu.save("check.h5")
 
 
 
