@@ -170,7 +170,8 @@ type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
 #### Validation images
 files_val = os.listdir("../VeRi/VeRi_with_plate/image_test")
 files_val.sort()
-# files_val = files_val[:160]
+# pu.db
+files_val = files_val
 files_perm_val = copy(files_val)
 random.shuffle(files_perm_val)
 files_first_name_val = [f_val.split("_")[0] for f_val in files_val]
@@ -236,7 +237,7 @@ checkpointer = ModelCheckpoint(monitor='acc', filepath="check.h5", verbose=True,
 print("Here")
 # pu.db
 if tv == 'v' or tv == 'V':
-    model_gpu.evaluate_generator(get_data(files_perm_val, type_dict_val, files_val, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32)
+    print(model_gpu.evaluate_generator(get_data(files_perm_val, type_dict_val, files_val, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
 else:
     for _ in xrange(EPOCHS):
         print _
