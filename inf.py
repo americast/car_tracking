@@ -1,6 +1,26 @@
 import cv2
 import numpy as np
 import pudb
+from keras.models import Sequential
+from keras.layers import *
+from keras.layers.core import *
+from keras.optimizers import SGD, RMSprop
+from keras import backend as K
+from keras.models import *
+
+from keras.utils import Sequence
+from keras.models import Sequential
+from keras.layers import *
+from keras.layers.core import *
+from keras.layers.convolutional import Conv2D
+from keras.optimizers import SGD, RMSprop
+from keras.utils.training_utils import multi_gpu_model
+from keras.callbacks import ModelCheckpoint
+from keras.applications.resnet50 import ResNet50
+from utils import *
+from copy import copy
+
+input_shape = (224, 224, 3)
 
 # Initialize the parameters
 confThreshold = 0.5  #Confidence threshold
@@ -23,6 +43,14 @@ net = cv2.dnn.readNetFromDarknet(modelConfiguration, modelWeights)
 net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
 net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
 
+
+def create_base_network(in_dim):
+    """ Base network to be shared (eq. to feature extraction).
+    """
+    model = ResNet50(weights="imagenet")
+    print(model.summary())
+    return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
+
 # Get the names of the output layers
 def getOutputsNames(net):
     # Get the names of all the layers in the network
@@ -35,23 +63,24 @@ def drawPred(frame, classId, conf, left, top, right, bottom):
     # Draw a bounding box.
     cv2.rectangle(frame, (left, top), (right, bottom), (255, 178, 50), 3)
     
-    label = '%.2f' % conf
+    # label = '%.2f' % conf
         
-    # Get the label for the class name and its confidence
-    if classes:
-        assert(classId < len(classes))
-        label = '%s:%s' % (classes[classId], label)
+    # # Get the label for the class name and its confidence
+    # if classes:
+    #     assert(classId < len(classes))
+    #     label = '%s:%s' % (classes[classId], label)
 
-    #Display the label at the top of the bounding box
-    labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-    top = max(top, labelSize[1])
-    cv2.rectangle(frame, (left, top - round(1.5*labelSize[1])), (left + round(1.5*labelSize[0]), top + baseLine), (255, 255, 255), cv2.FILLED)
-    cv2.putText(frame, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0,0,0), 1)
+    # #Display the label at the top of the bounding box
+    # labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+    # top = max(top, labelSize[1])
+    # cv2.rectangle(frame, (left, top - round(1.5*labelSize[1])), (left + round(1.5*labelSize[0]), top + baseLine), (255, 255, 255), cv2.FILLED)
+    # cv2.putText(frame, label, (left, top), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0,0,0), 1)
 
 # Remove the bounding boxes with low confidence using non-maxima suppression
 def postprocess(frame, outs):
     frameHeight = frame.shape[0]
     frameWidth = frame.shape[1]
+    frame_to_return = copy(frame)
 
     # Scan through all the bounding boxes output from the network and keep only the
     # ones with high confidence scores. Assign the box's class label as the class with the highest score.
@@ -79,6 +108,7 @@ def postprocess(frame, outs):
     # Perform non maximum suppression to eliminate redundant overlapping boxes with
     # lower confidences.
     indices = cv2.dnn.NMSBoxes(boxes, confidences, confThreshold, nmsThreshold)
+    boxes_to_return = []
     # pu.db
     for i in indices:
         i = i[0]
@@ -87,14 +117,45 @@ def postprocess(frame, outs):
         top = box[1]
         width = box[2]
         height = box[3]
-        drawPred(frame, classIds[i], confidences[i], left, top, left + width, top + height)
+        if classIds[i] == 2:
+            boxes_to_return.append(box)
+            drawPred(frame_to_return, classIds[i], confidences[i], left, top, left + width, top + height)
+    
+    # pu.db
+    return boxes_to_return, frame_to_return
 
 
 cap1 = cv2.VideoCapture('../Videos/ferst_atlantic_day.avi')
 cap2 = cv2.VideoCapture('../Videos/ferst_state_day.avi')
 
+# my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
+# print("Would you like to load an existing model? (y/n)")
+base_network = create_base_network(input_shape)
+
+input_a = Input(shape=input_shape)
+input_b = Input(shape=input_shape)
+
+# because we re-use the same instance `base_network`,
+# the weights of the network
+# will be shared across the two branches
+processed_a = base_network(input_a)
+processed_b = base_network(input_b)
+
+distance = Lambda(euclidean_distance,
+                output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+
+model = Model([input_a, input_b], distance)
+# if choice != 'n' and choice != 'N':
+model.load_weights("models/check_resnet_distance_weights.h5")
+# model_gpu = multi_gpu_model(model, gpus=4)
+
+
 if (cap1.isOpened()== False or cap2.isOpened()== False): 
   print("Error opening video stream or file")
+
+first = 1
+saved_box = []
+saved_frame = []
 
 while(cap1.isOpened() and cap2.isOpened()):
   # Capture frame-by-frame
@@ -107,16 +168,26 @@ while(cap1.isOpened() and cap2.isOpened()):
 
     net.setInput(blob1)
     outs = net.forward(getOutputsNames(net))
-    # pu.db
-    postprocess(frame1, outs)
+    box_here, frame_here = postprocess(frame1, outs)
+
+    if first == 7:
+        saved_box = box_here[0]
+        saved_frame = frame1[saved_box[0][1]:saved_box[0][1]+saved_box[0][3], saved_box[0][0]:saved_box[0][0]+saved_box[0][2], :]
+    else:
+        first += 1
 
     net.setInput(blob2)
     outs = net.forward(getOutputsNames(net))
     postprocess(frame2, outs)
 
     # Display the resulting frame
-    cv2.imshow('Frame1',frame1)
-    cv2.imshow('Frame2',frame2)
+    cv2.imshow('Frame1', frame_here)
+    # pu.db
+    if first != 7:
+        cv2.imshow('car in frame 1', frame1[box_here[0][1]:box_here[0][1]+box_here[0][3], box_here[0][0]:box_here[0][0]+box_here[0][2], :])
+    else:
+        cv2.imshow('car in frame 1', saved_frame)
+    cv2.imshow('Frame2', frame2)
  
     # Press Q on keyboard to  exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
