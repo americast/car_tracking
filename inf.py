@@ -172,9 +172,8 @@ while(cap1.isOpened() and cap2.isOpened()):
 
     if first == 7:
         saved_box = box_here[0]
-        saved_frame = frame1[saved_box[0][1]:saved_box[0][1]+saved_box[0][3], saved_box[0][0]:saved_box[0][0]+saved_box[0][2], :]
-    else:
-        first += 1
+        saved_frame = frame1[saved_box[1]:saved_box[1]+saved_box[3], saved_box[0]:saved_box[0]+saved_box[2], :]
+    # else:
 
     net.setInput(blob2)
     outs = net.forward(getOutputsNames(net))
@@ -186,6 +185,7 @@ while(cap1.isOpened() and cap2.isOpened()):
     if first != 7:
         cv2.imshow('car in frame 1', frame1[box_here[0][1]:box_here[0][1]+box_here[0][3], box_here[0][0]:box_here[0][0]+box_here[0][2], :])
     else:
+        # pu.db
         cv2.imshow('car in frame 1', saved_frame)
     cv2.imshow('Frame2', frame2)
  
@@ -193,6 +193,7 @@ while(cap1.isOpened() and cap2.isOpened()):
     if cv2.waitKey(1) & 0xFF == ord('q'):
       break
  
+    first += 1
   # Break the loop
   else: 
     break
