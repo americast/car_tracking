@@ -7,7 +7,7 @@ from keras.layers.core import *
 from keras.optimizers import SGD, RMSprop
 from keras import backend as K
 from keras.models import *
-
+from skimage.transform import resize
 from keras.utils import Sequence
 from keras.models import Sequential
 from keras.layers import *
@@ -155,12 +155,14 @@ if (cap1.isOpened()== False or cap2.isOpened()== False):
 
 first = 1
 saved_box = []
-saved_frame = []
+img1 = []
+car1 = []
 
 while(cap1.isOpened() and cap2.isOpened()):
   # Capture frame-by-frame
-  ret1, frame1 = cap1.read()
-  ret2, frame2 = cap2.read()
+  for m in range(5):
+    ret1, frame1 = cap1.read()
+    ret2, frame2 = cap2.read()
   if ret1 == True and ret2 == True:
  
     blob1 = cv2.dnn.blobFromImage(frame1, 1/255, (inpWidth, inpHeight), [0,0,0], 1, crop=False)
@@ -170,24 +172,46 @@ while(cap1.isOpened() and cap2.isOpened()):
     outs = net.forward(getOutputsNames(net))
     box_here, frame_here = postprocess(frame1, outs)
 
-    if first == 7:
+    print(first)
+    if first == 21:
         saved_box = box_here[0]
-        saved_frame = frame1[saved_box[1]:saved_box[1]+saved_box[3], saved_box[0]:saved_box[0]+saved_box[2], :]
+        car1 = frame1[saved_box[1]:saved_box[1]+saved_box[3], saved_box[0]:saved_box[0]+saved_box[2], :]
+        img1 = resize(car1, (input_shape[0], input_shape[1]))
     # else:
 
     net.setInput(blob2)
     outs = net.forward(getOutputsNames(net))
-    postprocess(frame2, outs)
+    box_here2, frame_here2 = postprocess(frame2, outs)
+
+    if first >= 21:
+        for each in box_here2:
+            car2 = frame2[each[1]:each[1]+each[3], each[0]:each[0]+each[2], :]
+            try:
+              img2 = resize(car2, (input_shape[0], input_shape[1]))
+            except:
+              continue
+
+            model_inp = [img1.reshape(1, input_shape[0], input_shape[1], 3), img2.reshape(1, input_shape[0], input_shape[1], 3)]
+            out = model.predict(model_inp)
+            print("Matching?: "+str(out))
+            if (out[0] > 0.5):
+              left = each[0]
+              top = each[1]
+              width = each[2]
+              height = each[3]
+              cv2.rectangle(frame_here2, (left, top), (left + width, top + height), (0, 0, 255), 3)
+              
+
 
     # Display the resulting frame
     cv2.imshow('Frame1', frame_here)
     # pu.db
-    if first != 7:
+    if first < 21:
         cv2.imshow('car in frame 1', frame1[box_here[0][1]:box_here[0][1]+box_here[0][3], box_here[0][0]:box_here[0][0]+box_here[0][2], :])
     else:
         # pu.db
-        cv2.imshow('car in frame 1', saved_frame)
-    cv2.imshow('Frame2', frame2)
+        cv2.imshow('car in frame 1', car1)
+    cv2.imshow('Frame2', frame_here2)
  
     # Press Q on keyboard to  exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
