@@ -77,7 +77,7 @@ type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
 files_val = os.listdir("../VeRi/VeRi_with_plate/image_test")
 files_val.sort()
 # pu.db
-files_val = files_val
+# files_val = files_val[:160]
 files_perm_val = copy(files_val)
 random.shuffle(files_perm_val)
 files_first_name_val = [f_val.split("_")[0] for f_val in files_val]
@@ -125,13 +125,13 @@ model_gpu = multi_gpu_model(model, gpus=4)
 
 # train
 rms = RMSprop()
-model_gpu.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
+model_gpu.compile(loss=contrastive_loss_weighted, optimizer=rms, metrics=[accuracy])
 
 
 # my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
 num_training_samples = len(files)
 num_validation_samples = len(files_val)
-# for x,y in get_data(files_perm):
+# for x,y in get_data_ratio(files_perm):
 #     pu.db
 
 #     break
@@ -143,23 +143,23 @@ checkpointer = ModelCheckpoint(monitor='acc', filepath="check.h5", verbose=True,
 print("Here")
 # pu.db
 if tv == 'v' or tv == 'V':
-    print(model_gpu.evaluate_generator(get_data(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
+    print(model_gpu.evaluate_generator(get_data_ratio(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
 else:
     for _ in xrange(EPOCHS):
-        print _
+        print (_)
         # if _ % 50 == 0:
-        #     for x in get_data(files_perm):
+        #     for x in get_data_ratio(files_perm):
         #       print "Prediction: "
         #       out = model.predict(x[0])
-        #       print("out: "+str(out))
+        #       print("out: "+str(out)) 
         #       print("orig: "+str(x[1]))
 
             
-        model_gpu.fit_generator(generator=get_data(files_perm, type_dict, files, input_shape, batch_size),
+        model_gpu.fit_generator(generator=get_data_ratio(files_perm, type_dict, files, input_shape, batch_size),
                                             steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
                                             epochs=1,
                                             verbose=1,
-                                            validation_data=get_data(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
+                                            validation_data=get_data_ratio(files_perm_val, type_dict_val, files_val, input_shape, batch_size,tv = 'v'),
                                             validation_steps=(num_validation_samples // batch_size * 4),
                                             use_multiprocessing=True,
                                             workers=16,
