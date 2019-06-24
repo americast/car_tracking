@@ -50,7 +50,7 @@ def create_base_network(in_dim):
     # return Model(input, x)
     model = ResNet50(weights="imagenet")
     print(model.summary())
-    return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
+    return Model(inputs=model.input, outputs=model.get_layer('avg_pool').output)
 
 
 
