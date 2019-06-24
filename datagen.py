@@ -12,7 +12,7 @@ def get_data(image_filenames, type_dict, files, input_shape, batch_size, tv = 't
     count = 0
     while j < len(batch_x):
         # print str(j)+"/"+str(len(batch_x))
-        label = 1
+        label = 0
         if (count == 0 and pos):
             X = []
             Y = []
@@ -48,7 +48,7 @@ def get_data(image_filenames, type_dict, files, input_shape, batch_size, tv = 't
             else:
                 img_2 = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each_2), (input_shape[0], input_shape[1]))
             
-            label = 0
+            label = 1
             pos = True
             j+=1
 
@@ -137,7 +137,7 @@ def get_data_ratio(image_filenames, type_dict, files, input_shape, batch_size, r
     count = 0
     while j < len(batch_x):
         # print str(j)+"/"+str(len(batch_x))
-        label = 1
+        label = 0
         if (count == 0):
             X = []
             Y = []
@@ -173,7 +173,7 @@ def get_data_ratio(image_filenames, type_dict, files, input_shape, batch_size, r
             else:
                 img_2 = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each_2), (input_shape[0], input_shape[1]))
             
-            label = 0
+            label = 1
             j+=1
 
         # pu.db

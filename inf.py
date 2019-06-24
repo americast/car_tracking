@@ -192,9 +192,12 @@ while(cap1.isOpened() and cap2.isOpened()):
               continue
 
             model_inp = [img1.reshape(1, input_shape[0], input_shape[1], 3), img2.reshape(1, input_shape[0], input_shape[1], 3)]
+            cv2.imshow("img1", img1)
+            cv2.imshow("img2", img2)
+            cv2.waitKey(1)
             out = model.predict(model_inp)
             print("Matching?: "+str(out))
-            if (out[0] > 0.5):
+            if (out[0] < 0.5):
               left = each[0]
               top = each[1]
               width = each[2]
