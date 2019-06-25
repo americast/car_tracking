@@ -124,7 +124,7 @@ model_gpu = multi_gpu_model(model, gpus=4)
 #model_gpu = model
 
 # train
-rms = RMSprop(lr = 0.0001, decay = 0.0001)
+rms = RMSprop()
 model_gpu.compile(loss=contrastive_loss_weighted, optimizer=rms, metrics=[accuracy])
 
 
@@ -141,6 +141,7 @@ model_gpu.summary()
 checkpointer = ModelCheckpoint(monitor='acc', filepath="check.h5", verbose=True,
                                    save_best_only = True)
 print("Here")
+acc_hist = 0.0
 # pu.db
 if tv == 'v' or tv == 'V':
     print(model_gpu.evaluate_generator(get_data_ratio(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
@@ -155,7 +156,7 @@ else:
         #       print("orig: "+str(x[1]))
 
             
-        model_gpu.fit_generator(generator=get_data_ratio(files_perm, type_dict, files, input_shape, batch_size),
+        acc = model_gpu.fit_generator(generator=get_data_ratio(files_perm, type_dict, files, input_shape, batch_size),
                                             steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
                                             epochs=1,
                                             verbose=1,
@@ -164,6 +165,8 @@ else:
                                             use_multiprocessing=True,
                                             workers=16,
                                             max_queue_size=32)
-
-        model.save_weights("check_weights.h5")
-        #model_gpu.save("check.h5")
+        if acc.history['accuracy'][0] > acc_hist:
+            print("Saving model")
+            model.save_weights("check_weights.h5")
+            acc_hist = acc.history['accuracy'][0]
+            #model_gpu.save("check.h5")

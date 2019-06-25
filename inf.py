@@ -49,7 +49,7 @@ def create_base_network(in_dim):
     """
     model = ResNet50(weights="imagenet")
     print(model.summary())
-    return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
+    return Model(inputs=model.input, outputs=model.get_layer('avg_pool').output)
 
 # Get the names of the output layers
 def getOutputsNames(net):
@@ -146,7 +146,8 @@ distance = Lambda(euclidean_distance,
 
 model = Model([input_a, input_b], distance)
 # if choice != 'n' and choice != 'N':
-model.load_weights("models/check_resnet_distance_weights.h5")
+model.load_weights("models/check_resnet_distance_weights_ratio.h5")
+# model.load_weights("check_weights.h5")
 # model_gpu = multi_gpu_model(model, gpus=4)
 
 

@@ -149,6 +149,7 @@ def get_data_ratio(image_filenames, type_dict, files, input_shape, batch_size, r
         # pu.db
 
         range_here = type_dict[each.split("_")[0]]
+        count +=1
         if random.random() <= ratio:
             while True:
                 ind = random.randrange(*range_here)
@@ -161,7 +162,6 @@ def get_data_ratio(image_filenames, type_dict, files, input_shape, batch_size, r
                 img_2 = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each_2), (input_shape[0], input_shape[1]))
 
         else:
-            count +=1
             
             while True:
                 ind = random.randrange(0,len(files))
@@ -174,7 +174,7 @@ def get_data_ratio(image_filenames, type_dict, files, input_shape, batch_size, r
                 img_2 = resize(imread("../VeRi/VeRi_with_plate/image_test/"+each_2), (input_shape[0], input_shape[1]))
             
             label = 1
-            j+=1
+        j+=1
 
         # pu.db
 
