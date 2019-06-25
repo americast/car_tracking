@@ -30,8 +30,8 @@ from utils import *
 
 EPOCHS = 10000
 batch_size = 56
-#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-#os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 input_shape = (224, 224, 3)
 
@@ -228,7 +228,7 @@ input_b = Input(shape=input_shape)
 processed_a = base_network(input_a)
 processed_b = base_network(input_b)
 
-vect_cat = Concatenate()([processed_a, processed_b])
+vect_cat = Concatenate(axis = -1, name = "cat_layer")([processed_a, processed_b])
 hid_cat_2 = Dense(512, activation='relu', name="cat_dense_1")(vect_cat)
 hid_cat_1 = Dense(256, activation='relu', name="cat_dense_2")(hid_cat_2)
 hid_cat = Dense(64, activation='relu', name="cat_dense_3")(hid_cat_1)
@@ -241,11 +241,11 @@ out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 model = Model([input_a, input_b], out)
 if choice != 'n' and choice != 'N':
     model.load_weights(choice)
-model_gpu = multi_gpu_model(model, gpus=4)
-#model_gpu = model
+# model_gpu = multi_gpu_model(model, gpus=4)
+model_gpu = model
 
 # train
-learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 0.01}
+learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 10}
 
 adam_with_lr_multipliers = Adam_lr_mult(lr = 0.001, multipliers=learning_rate_multipliers)
 model_gpu.compile(loss=losses.categorical_crossentropy, optimizer=adam_with_lr_multipliers, metrics=[accuracy])
@@ -291,5 +291,6 @@ else:
                                             workers=16,
                                             max_queue_size=32)
 
-        model.save_weights("check_weights.h5")
-        #model_gpu.save("check.h5")
+        # model.save_weights("check_weights_class.h5")
+        pu.db
+        model_gpu.save("check_weights_class.h5")
