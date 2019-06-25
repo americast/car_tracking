@@ -245,7 +245,7 @@ model_gpu = multi_gpu_model(model, gpus=4)
 #model_gpu = model
 
 # train
-learning_rate_multipliers = {"cat_dense_1": 0.01, "cat_dense_2": 0.01, "cat_dense_3": 0.01, "cat_dense_out": 0.01}
+learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 0.01}
 
 adam_with_lr_multipliers = Adam_lr_mult(lr = 0.001, multipliers=learning_rate_multipliers)
 model_gpu.compile(loss=losses.categorical_crossentropy, optimizer=adam_with_lr_multipliers, metrics=[accuracy])
@@ -272,13 +272,13 @@ if tv == 'v' or tv == 'V':
 else:
     for _ in xrange(EPOCHS):
         print _
-        if _ >= 0:
-            for x in get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
-              print "Prediction: "
-              out = model.predict(x[0])
-              print("out: "+str(out))
-              print("orig: "+str(x[1]))
-              break
+        # if _ >= 0:
+        #     for x in get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
+        #       print "Prediction: "
+        #       out = model.predict(x[0])
+        #       print("out: "+str(out))
+        #       print("orig: "+str(x[1]))
+        #       break
 
             
         model_gpu.fit_generator(generator=get_data_hot(files_perm, type_dict, files, input_shape, batch_size),
