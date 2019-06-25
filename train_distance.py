@@ -124,7 +124,7 @@ model_gpu = multi_gpu_model(model, gpus=4)
 #model_gpu = model
 
 # train
-rms = RMSprop()
+rms = RMSprop(lr = 0.0001, decay = 0.0001)
 model_gpu.compile(loss=contrastive_loss_weighted, optimizer=rms, metrics=[accuracy])
 
 
