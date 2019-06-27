@@ -3,7 +3,7 @@ tv = raw_input("Train or validate? (t/v): ")
 from keras.models import Sequential
 from keras.layers import *
 from keras.layers.core import *
-from keras.optimizers import SGD, RMSprop, Adadelta
+from keras.optimizers import SGD, RMSprop
 from keras import backend as K
 from keras.models import *
 from keras import losses
@@ -29,11 +29,11 @@ from datagen import *
 from utils import *
 
 EPOCHS = 10000
-batch_size = 1
+batch_size = 56
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-input_shape = (224, 224, 3,)
+input_shape = (224, 224, 3)
 
 from keras.legacy import interfaces
 import keras.backend as K
@@ -150,31 +150,28 @@ class Adam_lr_mult(Optimizer):
 def create_base_network(in_dim):
     """ Base network to be shared (eq. to feature extraction).
     """
-    input = Input(shape=input_shape)
+    # input = Input(shape=input_shape)
 
     # x = Conv2D(8, kernel_size=(5, 5), strides=(1, 1),
     #                 activation='relu',
     #                 input_shape=(input_shape[0], input_shape[1]))(input)
 
-    # # x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-    # # x = Conv2D(16, (5, 5), activation='relu')(x)
+    # x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # x = Conv2D(16, (5, 5), activation='relu')(x)
     # x = MaxPooling2D(pool_size=(2, 2))(x)
-    x = Flatten()(input)
-    x = Dense(1000, activation='relu')(x)
-    x = Dense(500, activation='relu')(x)
-    x = Dense(256, activation='relu')(x)
-    # x = Dense(3, activation='softmax')(x)
-    return Model(input, x)
-    # model = ResNet50(weights="imagenet")
+    # x = Flatten()(x)
+    # x = Dense(1000, activation='relu')(x)
+    # return Model(input, x)
+    model = ResNet50(weights="imagenet")
     # print(model.summary())
-    # return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
+    return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
 
 
 
 #### Training images
-files = os.listdir("../VeRi/VeRi_with_plate/unit")
+files = os.listdir("../VeRi/VeRi_with_plate/image_train")
 files.sort()
-files = files[:160]
+# files = files[:160]
 files_perm = copy(files)
 random.shuffle(files_perm)
 files_first_name = [f.split("_")[0] for f in files]
@@ -191,11 +188,10 @@ for i in range(1, len(files_first_name)):
 type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
 
 #### Validation images
-files_val = os.listdir("../VeRi/VeRi_with_plate/unit")
-# files_val = os.listdir("../VeRi/VeRi_with_plate/image_test")
+files_val = os.listdir("../VeRi/VeRi_with_plate/image_test")
 files_val.sort()
 # pu.db
-files_val = files_val[:160]
+# files_val = files_val[:160]
 files_perm_val = copy(files_val)
 random.shuffle(files_perm_val)
 files_first_name_val = [f_val.split("_")[0] for f_val in files_val]
@@ -221,124 +217,79 @@ GT_validation = []
 
 # my_training_batch_generator = My_Generator(files_perm, GT_training, batch_size)
 # print("Would you like to load an existing model? (y/n)")
-# base_network = create_base_network(input_shape)
+base_network = create_base_network(input_shape)
 
-# input_b = Input(shape=input_shape)
+input_a = Input(shape=input_shape)
+input_b = Input(shape=input_shape)
 
 # because we re-use the same instance `base_network`,
 # the weights of the network
 # will be shared across the two branches
-# processed_a = base_network(input_a)
-# processed_b = base_network(input_b)
+processed_a = base_network(input_a)
+processed_b = base_network(input_b)
 
-# vect_cat = Concatenate(axis = -1, name = "cat_layer")([processed_a, processed_b])
-# hid_cat_2 = Dense(2, activation='relu', name="cat_dense_1")(vect_cat)
-# hid_cat_1 = Dense(256, activation='relu', name="cat_dense_2")(hid_cat_2)
-# hid_cat = Dense(64, activation='relu', name="cat_dense_3")(hid_cat_1)
-# out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
+vect_cat = Concatenate(axis = -1, name = "cat_layer")([processed_a, processed_b])
+hid_cat_2 = Dense(512, activation='relu', name="cat_dense_1")(vect_cat)
+hid_cat_1 = Dense(256, activation='relu', name="cat_dense_2")(hid_cat_2)
+hid_cat = Dense(64, activation='relu', name="cat_dense_3")(hid_cat_1)
+out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 
-########OLD MODEL############
-input_a = Input(input_shape)
-x_1 = Flatten()(input_a)
-x_2 = Dense(1000, activation='relu', input_shape=(224*224*3,), kernel_initializer='random_uniform', bias_initializer='zeros')(x_1)
-x_3 = Dense(500, activation='relu', kernel_initializer='random_uniform', bias_initializer='zeros')(x_2)
-x_4 = Dense(256, activation='relu', kernel_initializer='random_uniform', bias_initializer='zeros')(x_3)
-
-out = Dense(3, activation='softmax', name="cat_dense_out", kernel_initializer='random_uniform', bias_initializer='zeros')(x_4)
-
-model_gpu = Model(inputs=input_a, outputs=out)
-model_gpu.compile(loss=losses.categorical_crossentropy, optimizer=Adadelta(lr = 0.01), metrics=["accuracy"])
 
 # distance = Lambda(euclidean_distance,
 #                 output_shape=eucl_dist_output_shape)([processed_a, processed_b])
-# if choice != 'n' and choice != 'N':
-#     model.load_weights(choice)
+
+model = Model([input_a, input_b], out)
+if choice != 'n' and choice != 'N':
+    model.load_weights(choice)
 # model_gpu = multi_gpu_model(model, gpus=4)
-# model_gpu = model
+model_gpu = model
 
 # train
-# learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 10}
+learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 10}
 
-# adam_with_lr_multipliers = Adam_lr_mult(lr = 0.01, multipliers=learning_rate_multipliers)
-#################
-
-# model_gpu = Sequential()
-# model_gpu.add(Flatten())
-# model_gpu.add(Dense(1000, activation='relu', input_shape=(224*224*3,), kernel_initializer='random_uniform', bias_initializer='zeros'))
-
-# model_gpu.add(Dense(500, activation='relu', kernel_initializer='random_uniform', bias_initializer='zeros'))
-
-# model_gpu.add(Dense(256, activation='relu', kernel_initializer='random_uniform', bias_initializer='zeros'))
-
-
-# model_gpu.add(Dense(3, activation='softmax', kernel_initializer='random_uniform', bias_initializer='zeros'))
-
-# model_gpu.compile(loss=losses.categorical_crossentropy,
-#               optimizer=Adadelta(lr = 0.01),
-#               metrics=['accuracy'])
-
+adam_with_lr_multipliers = Adam_lr_mult(lr = 0.0001, multipliers=learning_rate_multipliers)
+model_gpu.compile(loss=losses.categorical_crossentropy, optimizer=adam_with_lr_multipliers, metrics=["accuracy"])
 
 
 # my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
 num_training_samples = len(files)
 num_validation_samples = len(files_val)
-# for x,y in get_data_hot_unit(files_perm, type_dict, files, input_shape, batch_size):
+# for x,y in get_data(files_perm):
 #     pu.db
 
 #     break
-# print(model_gpu.summary())
+print(model_gpu.summary())
 # sys.exit(0)
 
 
 
-# checkpointer = ModelCheckpoint(monitor='acc', filepath="check_weights.h5", verbose=True,
-                                #    save_best_only = True)
+checkpointer = ModelCheckpoint(monitor='acc', filepath="check_weights.h5", verbose=True,
+                                   save_best_only = True)
 print("Here")
 # pu.db
-X_train = []
-Y_train = []
-for each in os.listdir("/nethome/ssinha97/VeRi/VeRi_with_plate/unit"):
-	img = resize(imread("../VeRi/VeRi_with_plate/unit/"+each), (input_shape[0], input_shape[1]))
-	img = img.reshape(img.shape[0], img.shape[1], 1)
-	img = np.concatenate((img, img, img), axis = -1)
-	X_train.append(img.reshape(input_shape[0], input_shape[1], 3))
-	num = each.split("_")[0]
-        if num == "0":
-            label = [1,0,0]
-        elif num == "1":     
-            label = [0,1,0]
-        else:
-            label = [0,0,1]
-	Y_train.append(label)
-X_train = np.array(X_train).astype("float32")
-Y_train = np.array(Y_train)
-	
 if tv == 'v' or tv == 'V':
-    print(model_gpu.evaluate_generator(get_data_hot_unit(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
+    print(model_gpu.evaluate_generator(get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
 else:
     for _ in xrange(EPOCHS):
         print _
         # if _ >= 0:
-        #     for x in get_data_hot_unit(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
+        #     for x in get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
         #       print "Prediction: "
         #       out = model.predict(x[0])
         #       print("out: "+str(out))
         #       print("orig: "+str(x[1]))
         #       break
 
-        model_gpu.fit(X_train, Y_train,
-          batch_size=256,
-          epochs=10,
-          verbose=1)
-        model_gpu.fit_generator(generator=get_data_hot_unit(files_perm, type_dict, files, input_shape, batch_size),
-                                            steps_per_epoch=(num_training_samples),
-                                            epochs=10,
-                                            verbose=1)
-                                            # validation_data=get_data_hot_unit(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
+            
+        model_gpu.fit_generator(generator=get_data_hot(files_perm, type_dict, files, input_shape, batch_size),
+                                            steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
+                                            epochs=1,
+                                            verbose=1,
+                                            # validation_data=get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
                                             # validation_steps=(num_validation_samples // batch_size * 4),
-                                            # use_multiprocessing=True,
-                                            # workers=16,
-                                            # max_queue_size=32)
+                                            use_multiprocessing=True,
+                                            workers=16,
+                                            max_queue_size=32)
 
         # model.save_weights("check_weights_class.h5")
         pu.db
