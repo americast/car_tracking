@@ -29,9 +29,9 @@ from datagen import *
 from utils import *
 
 EPOCHS = 10000
-batch_size = 56
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
-os.environ["CUDA_VISIBLE_DEVICES"] = ""
+batch_size = 16
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 input_shape = (224, 224, 3)
 
@@ -241,8 +241,8 @@ out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 model = Model([input_a, input_b], out)
 if choice != 'n' and choice != 'N':
     model.load_weights(choice)
-# model_gpu = multi_gpu_model(model, gpus=4)
-model_gpu = model
+model_gpu = multi_gpu_model(model, gpus=4)
+# model_gpu = model
 
 # train
 learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 10}
@@ -263,9 +263,11 @@ print(model_gpu.summary())
 
 
 
-checkpointer = ModelCheckpoint(monitor='acc', filepath="check_weights.h5", verbose=True,
-                                   save_best_only = True)
+# checkpointer = ModelCheckpoint(monitor='acc', filepath="check_weights.h5", verbose=True,
+#                                    save_best_only = True)
 print("Here")
+acc_hist = 0.0
+
 # pu.db
 if tv == 'v' or tv == 'V':
     print(model_gpu.evaluate_generator(get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
@@ -281,16 +283,19 @@ else:
         #       break
 
             
-        model_gpu.fit_generator(generator=get_data_hot(files_perm, type_dict, files, input_shape, batch_size),
+        acc = model_gpu.fit_generator(generator=get_data_hot(files_perm, type_dict, files, input_shape, batch_size),
                                             steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
                                             epochs=1,
                                             verbose=1,
-                                            # validation_data=get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
-                                            # validation_steps=(num_validation_samples // batch_size * 4),
+                                            validation_data=get_data_hot(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
+                                            validation_steps=(num_validation_samples // batch_size * 4),
                                             use_multiprocessing=True,
                                             workers=16,
                                             max_queue_size=32)
-
+        if acc.history['accuracy'][0] > acc_hist:
+            print("Saving model")
+            model.save_weights("check_weights_class.h5")
+            acc_hist = acc.history['accuracy'][0]
         # model.save_weights("check_weights_class.h5")
-        pu.db
-        model_gpu.save("check_weights_class.h5")
+        # pu.db
+        # model_gpu.save("check_weights_class.h5")
