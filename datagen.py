@@ -247,7 +247,7 @@ def get_data_ratio_wild(image_filenames, type_dict, files, input_shape, batch_si
     Y = []
     count = 0
     while j < len(batch_x):
-        print (str(j)+"/"+str(len(batch_x)))
+        # print (str(j)+"/"+str(len(batch_x)))
         label = 0
         if (count == 0):
             X = []

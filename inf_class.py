@@ -47,9 +47,21 @@ net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
 def create_base_network(in_dim):
     """ Base network to be shared (eq. to feature extraction).
     """
+    # input = Input(shape=input_shape)
+
+    # x = Conv2D(8, kernel_size=(5, 5), strides=(1, 1),
+    #                 activation='relu',
+    #                 input_shape=(input_shape[0], input_shape[1]))(input)
+
+    # x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+    # x = Conv2D(16, (5, 5), activation='relu')(x)
+    # x = MaxPooling2D(pool_size=(2, 2))(x)
+    # x = Flatten()(x)
+    # x = Dense(1000, activation='relu')(x)
+    # return Model(input, x)
     model = ResNet50(weights="imagenet")
-    print(model.summary())
-    return Model(inputs=model.input, outputs=model.get_layer('avg_pool').output)
+    # print(model.summary())
+    return Model(inputs=model.input, outputs=model.get_layer('fc1000').output)
 
 # Get the names of the output layers
 def getOutputsNames(net):
@@ -140,14 +152,16 @@ input_b = Input(shape=input_shape)
 # will be shared across the two branches
 processed_a = base_network(input_a)
 processed_b = base_network(input_b)
+vect_cat = Concatenate(axis = -1, name = "cat_layer")([processed_a, processed_b])
+hid_cat_2 = Dense(512, activation='relu', name="cat_dense_1")(vect_cat)
+hid_cat_1 = Dense(256, activation='relu', name="cat_dense_2")(hid_cat_2)
+hid_cat = Dense(64, activation='relu', name="cat_dense_3")(hid_cat_1)
+out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 
-distance = Lambda(euclidean_distance,
-                output_shape=eucl_dist_output_shape)([processed_a, processed_b])
-
-model = Model([input_a, input_b], distance)
+model = Model([input_a, input_b], out)
 # if choice != 'n' and choice != 'N':
 # model.load_weights("models/check_resnet_distance_weights_ratio.h5")
-model.load_weights("check_weights_distance_wild.h5")
+model.load_weights("check_weights_class.h5")
 # model_gpu = multi_gpu_model(model, gpus=4)
 
 
@@ -198,7 +212,8 @@ while(cap1.isOpened() and cap2.isOpened()):
             cv2.waitKey(1)
             out = model.predict(model_inp)
             print("Matching?: "+str(out))
-            if (out[0] < 75):
+            # pu.db
+            if (np.argmax(out[0]) == 1):
               left = each[0]
               top = each[1]
               width = each[2]
