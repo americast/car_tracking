@@ -161,7 +161,7 @@ out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 model = Model([input_a, input_b], out)
 # if choice != 'n' and choice != 'N':
 # model.load_weights("models/check_resnet_distance_weights_ratio.h5")
-model.load_weights("check_weights_class.h5")
+model.load_weights("check_weights_class_wild.h5")
 # model_gpu = multi_gpu_model(model, gpus=4)
 
 

@@ -194,6 +194,16 @@ for i in range(1, len(files_first_name)):
 
 type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
 
+files_all_pairs = []
+for i in xrange(len(files)):
+    range_here = type_dict[files[i].split("/")[0]]
+    for j in xrange(range_here[0], range_here[1]):
+        if i == j: continue
+        files_all_pairs.append(tuple(sorted([files[i], files[j]])))
+# pu.db
+files_all_pairs = list(set(files_all_pairs))
+random.shuffle(files_all_pairs)
+
 #### Validation images
 f_val = open("../VeRI_Wild/train_test_split/test_3000_query.txt", "r")
 files_val = []
@@ -220,6 +230,16 @@ for i_val in range(1, len(files_first_name_val)):
         i_start_val = i_val
 
 type_dict_val[files_first_name_val[-1]] = (i_start_val, len(files_first_name_val))
+
+files_all_pairs_val = []
+for i in xrange(len(files_val)):
+    range_here = type_dict_val[files_val[i].split("/")[0]]
+    for j in xrange(range_here[0], range_here[1]):
+        if i == j: continue
+        files_all_pairs_val.append(tuple(sorted([files_val[i], files_val[j]])))
+
+files_all_pairs_val = list(set(files_all_pairs_val))
+random.shuffle(files_all_pairs_val)
 
 
 # pu.db
@@ -268,7 +288,7 @@ model_gpu.compile(loss=losses.categorical_crossentropy, optimizer=adam_with_lr_m
 # my_validation_batch_generator = My_Generator(validation_filenames, GT_validation, batch_size)
 num_training_samples = len(files)
 num_validation_samples = len(files_val)
-# for x,y in get_data(files_perm):
+# for x,y in get_data_hot_wild_ratio(files_perm, type_dict, files, files_all_pairs, input_shape, batch_size):
 #     pu.db
 
 #     break
@@ -284,12 +304,12 @@ acc_hist = 0.0
 
 # pu.db
 if tv == 'v' or tv == 'V':
-    print(model_gpu.evaluate_generator(get_data_hot_wild(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
+    print(model_gpu.evaluate_generator(get_data_hot_wild_ratio(files_perm_val, type_dict_val, files_val, files_all_pairs_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
 else:
     for _ in xrange(EPOCHS):
         print _
         # if _ >= 0:
-        #     for x in get_data_hot_wild(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
+        #     for x in get_data_hot_wild_ratio(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
         #       print "Prediction: "
         #       out = model.predict(x[0])
         #       print("out: "+str(out))
@@ -297,11 +317,11 @@ else:
         #       break
 
             
-        acc = model_gpu.fit_generator(generator=get_data_hot_wild(files_perm, type_dict, files, input_shape, batch_size),
+        acc = model_gpu.fit_generator(generator=get_data_hot_wild_ratio(files_perm, type_dict, files, files_all_pairs, input_shape, batch_size),
                                             steps_per_epoch=(num_training_samples * 2 // (batch_size * 4)),
                                             epochs=1,
                                             verbose=1,
-                                            # validation_data=get_data_hot_wild(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
+                                            # validation_data=get_data_hot_wild_ratio(files_perm_val, type_dict_val, files_val, input_shape, batch_size,'v'),
                                             # validation_steps=(num_validation_samples // batch_size * 4),
                                             use_multiprocessing=True,
                                             workers=16,
@@ -309,7 +329,7 @@ else:
         # pu.db
         if acc.history['acc'][0] > acc_hist:
             print("Saving model")
-            model.save_weights("check_weights_class_wild.h5")
+            model.save_weights("check_weights_class_wild_ratio.h5")
             acc_hist = acc.history['acc'][0]
         # model.save_weights("check_weights_class.h5")
         # pu.db
