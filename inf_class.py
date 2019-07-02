@@ -19,6 +19,8 @@ from keras.callbacks import ModelCheckpoint
 from keras.applications.resnet50 import ResNet50
 from utils import *
 from copy import copy
+from keras.applications.resnet50 import preprocess_input
+
 
 input_shape = (224, 224, 3)
 
@@ -161,7 +163,7 @@ out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 model = Model([input_a, input_b], out)
 # if choice != 'n' and choice != 'N':
 # model.load_weights("models/check_resnet_distance_weights_ratio.h5")
-model.load_weights("check_weights_class_wild.h5")
+model.load_weights("check_weights_class_wild_ratio.h5")
 # model_gpu = multi_gpu_model(model, gpus=4)
 
 
@@ -206,14 +208,19 @@ while(cap1.isOpened() and cap2.isOpened()):
             except:
               continue
 
-            model_inp = [img1.reshape(1, input_shape[0], input_shape[1], 3), img2.reshape(1, input_shape[0], input_shape[1], 3)]
+            # pu.db
+            
+            img1_copy = copy(cv2.cvtColor((255 * img1).astype(np.uint8), cv2.COLOR_BGR2RGB))
+            img2_copy = copy(cv2.cvtColor((255 * img2).astype(np.uint8), cv2.COLOR_BGR2RGB))
+
+            model_inp = [preprocess_input(img1_copy.reshape(1, input_shape[0], input_shape[1], 3)), preprocess_input(img2_copy.reshape(1, input_shape[0], input_shape[1], 3))]
             cv2.imshow("img1", img1)
             cv2.imshow("img2", img2)
             cv2.waitKey(1)
             out = model.predict(model_inp)
             print("Matching?: "+str(out))
             # pu.db
-            if (np.argmax(out[0]) == 1):
+            if (out[0][1] >= 0.3):
               left = each[0]
               top = each[1]
               width = each[2]
