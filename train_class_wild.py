@@ -205,7 +205,7 @@ files_all_pairs = list(set(files_all_pairs))
 random.shuffle(files_all_pairs)
 
 #### Validation images
-f_val = open("../VeRI_Wild/train_test_split/test_3000_query.txt", "r")
+f_val = open("../VeRI_Wild/train_test_split/test_3000.txt", "r")
 files_val = []
 while True:
     l_val = f_val.readline()
@@ -213,9 +213,9 @@ while True:
         f_val.close()
         break
     files_val.append(l_val.strip())
+# files_val = files_val[:300]
 files_val.sort()
 # pu.db
-# files_val = files_val[:160]
 files_perm_val = copy(files_val)
 random.shuffle(files_perm_val)
 files_first_name_val = [f_val.split("/")[0] for f_val in files_val]
@@ -304,7 +304,11 @@ acc_hist = 0.0
 
 # pu.db
 if tv == 'v' or tv == 'V':
-    print(model_gpu.evaluate_generator(get_data_hot_wild_ratio(files_perm_val, type_dict_val, files_val, files_all_pairs_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32))
+    print("Pred start")
+    # pu.db
+    Y_pred = model_gpu.predict_generator(get_data_hot_wild_ratio_pred(files_perm_val, type_dict_val, files_val, files_all_pairs_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32)
+    y_pred = np.argmax(Y_pred, axis=1)
+    pu.db
 else:
     for _ in xrange(EPOCHS):
         print _
