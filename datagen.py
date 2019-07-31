@@ -481,4 +481,114 @@ def get_data_hot_wild_ratio_pred(image_filenames, type_dict, files, files_pair, 
             if (count == batch_size or count >= len(files_pair)):
                 X_arr = np.array(X)
                 count = 0
-                yield [X_arr[:,0], X_arr[:,1]]                
+                yield [X_arr[:,0], X_arr[:,1]]
+                print("\n\nResume iter\n\n")
+
+def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files_pair, input_shape, batch_size, ratio = 0.1, tv = 't'):
+    j = 0
+    old_j = 0
+    X = []
+    Y = []
+    count = 0
+    # while True:
+    #     j = 0
+    while j < len(files_pair):
+        print str(j)+"/"+str(len(files_pair))
+        label = [0,1]
+        if (count == 0):
+            X = []
+            Y = []
+        if random.random() < ratio:
+            
+            each = files_pair[j][0]
+            img =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each+".jpg", target_size = (input_shape[0], input_shape[1])))
+            each_2 = files_pair[j][1]
+            img_2 =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each_2+".jpg", target_size = (input_shape[0], input_shape[1])))
+
+            j += 1
+
+        else:
+            ind_1 = 0
+            ind_2 = 0
+            while True:
+                ind_1 = random.randrange(0,len(files))
+                ind_2 = random.randrange(0,len(files))
+
+                if ind_2 not in range(*type_dict[files[ind_1].split("/")[0]]) : break
+
+            each = files[ind_1]
+            img =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each+".jpg", target_size = (input_shape[0], input_shape[1])))
+            each_2 = files[ind_2]
+            img_2 =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each_2+".jpg", target_size = (input_shape[0], input_shape[1])))
+
+            label = [1,0]
+
+        count +=1
+        # pu.db
+
+        X.append(np.concatenate((preprocess_input(seq(images = img.reshape(1, input_shape[0], input_shape[1], 3))), preprocess_input(seq(images = img_2.reshape(1, input_shape[0], input_shape[1], 3)))), axis = 0))
+        Y.append(label)
+
+
+
+        # batch_y = labels[idx * batch_size:(idx + 1) * batch_size]
+
+        if (old_j != j or count >= len(files_pair)):
+            X_arr = np.array(X)
+            count = 0
+            yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
+            print("\n\nResume iter\n\n")
+            old_j = j
+
+
+# def get_data_hot_wild_ratio_pred_noniter(image_filenames, type_dict, files, files_pair, input_shape, batch_size, ratio = 0.1, tv = 't'):
+    # j = 0
+    # X = []
+    # Y = []
+    # count = 0
+    # while j < len(files_pair):
+    #     print str(j)+"/"+str(len(files_pair))
+    #     label = [0,1]
+    #     # if (count == 0):
+    #     # pu.db
+    #     if random.random() < ratio:
+            
+    #         each = files_pair[j][0]
+    #         img =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each+".jpg", target_size = (input_shape[0], input_shape[1])))
+    #         each_2 = files_pair[j][1]
+    #         img_2 =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each_2+".jpg", target_size = (input_shape[0], input_shape[1])))
+
+    #         j += 1
+
+    #     else:
+    #         ind_1 = 0
+    #         ind_2 = 0
+    #         while True:
+    #             ind_1 = random.randrange(0,len(files))
+    #             ind_2 = random.randrange(0,len(files))
+
+    #             if ind_2 not in range(*type_dict[files[ind_1].split("/")[0]]) : break
+
+    #         each = files[ind_1]
+    #         img =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each+".jpg", target_size = (input_shape[0], input_shape[1])))
+    #         each_2 = files[ind_2]
+    #         img_2 =  image.img_to_array(image.load_img("../VeRI_Wild/images/images/"+each_2+".jpg", target_size = (input_shape[0], input_shape[1])))
+
+    #         label = [1,0]
+    #         # if label == [1,0]: pu.db
+
+    #     count +=1
+    #     # pu.db
+
+    #     X.append(np.concatenate((preprocess_input(seq(images = img.reshape(1, input_shape[0], input_shape[1], 3))), preprocess_input(seq(images = img_2.reshape(1, input_shape[0], input_shape[1], 3)))), axis = 0))
+    #     Y.append(label)
+
+
+
+    #     # batch_y = labels[idx * batch_size:(idx + 1) * batch_size]
+
+    #     if (count == batch_size or count >= len(files_pair)):
+    #         X_arr = np.array(X)
+    #         count = 0
+    #         yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
+    #         print("\n\nResume iter\n\n")

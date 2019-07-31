@@ -213,7 +213,7 @@ while True:
         f_val.close()
         break
     files_val.append(l_val.strip())
-# files_val = files_val[:300]
+files_val = files_val[:1000]
 files_val.sort()
 # pu.db
 files_perm_val = copy(files_val)
@@ -305,10 +305,63 @@ acc_hist = 0.0
 # pu.db
 if tv == 'v' or tv == 'V':
     print("Pred start")
+    avg_precisions = []
+    precisions = []
+    recalls = []
     # pu.db
-    Y_pred = model_gpu.predict_generator(get_data_hot_wild_ratio_pred(files_perm_val, type_dict_val, files_val, files_all_pairs_val, input_shape, batch_size, 'v'), steps=(num_validation_samples * 2 // (batch_size * 4)), use_multiprocessing=True, workers=16, max_queue_size=32)
-    y_pred = np.argmax(Y_pred, axis=1)
+    for data in get_data_hot_wild_ratio_pred_noninf(files_perm_val, type_dict_val, files_val, files_all_pairs_val, input_shape, batch_size, tv = 'v'):
+        Y_pred = model_gpu.predict(data[0])
+        # pu.db
+        y_pred = np.argmax(Y_pred, axis=1)
+        y_org = np.argmax(data[1], axis=1)
+
+        ind_ones_pred = np.where(y_pred == 1)
+        ind_ones_pred_false = np.where(y_pred == 0)
+        ind_ones_org = np.where(y_org == 1)
+        ind_ones_org_false = np.where(y_org == 0)
+
+        TP = len(np.intersect1d(ind_ones_org, ind_ones_pred))
+        FP = len(np.intersect1d(ind_ones_org_false, ind_ones_pred))
+        TN = len(np.intersect1d(ind_ones_org_false, ind_ones_pred_false))
+        FN = len(np.intersect1d(ind_ones_org, ind_ones_pred_false))
+
+        try:
+            precision = float(TP) / (TP + FP + 1e-06)
+        except:
+            precision = 1.0
+        try:
+            recall = float(TP) / (TP + FN + 1e-06)
+        except:
+            recall = 0.0
+
+        Y_pred_one_only = Y_pred[y_pred == 1]
+        y_org_sorted = y_org[y_pred == 1]
+
+        # pu.db
+        try:
+            Y_pred_one_only, y_org_sorted = zip(*sorted(zip(Y_pred_one_only, y_org_sorted), reverse = True))
+        except: pass
+
+        precisions_here = []
+        pred_good = 0
+
+        for i in range(len(Y_pred_one_only)):
+            if (y_org_sorted[i] == 1):
+                pred_good += 1
+            precisions_here.append(float(pred_good)/(i+1))
+
+        try:
+            avg_precisions.append(sum(precisions_here)/len(precisions_here))
+            # if sum(precisions_here)/len(precisions_here) == 0:
+            #     pu.db
+        except:
+            avg_precisions.append(0.0)
+
+        precisions.append(precision)
+        recalls.append(recall)
+        
     pu.db
+
 else:
     for _ in xrange(EPOCHS):
         print _
