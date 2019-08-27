@@ -1,14 +1,14 @@
-from keras.models import *
-from keras.layers import *
-from keras.optimizers import *
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler
-from keras import backend as K
-import pudb
-
+# from keras.models import *
+# from keras.layers import *
+# from keras.optimizers import *
+# from keras.callbacks import ModelCheckpoint, LearningRateScheduler
+# from keras import backend as K
 import torch.nn as nn
 import torch.functional as F
 import torch
 from datagen import *
+import matplotlib.pyplot as plt
+import pudb
 
 class unet_torch(nn.Module):
     def __init__(self):
@@ -82,9 +82,12 @@ while True:
 f.close()
 
 data = data_unet(files)
+print("Data loaded")
 
 for each in data:
     pu.db
+    plt.imshow(each[0][0])
+    plt.show()
 
 net = unet_torch()
 pu.db

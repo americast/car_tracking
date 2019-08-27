@@ -1,10 +1,11 @@
+import torch
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 import numpy as np
 import random
 from skimage import io, transform
 import os
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import pudb
 from imgaug import augmenters as iaa
 from torch.utils.data import Dataset
@@ -16,17 +17,17 @@ seq = iaa.Sequential([
     iaa.GaussianBlur(sigma=(0, 3.0)) # blur images with a sigma of 0 to 3.0
 ])
 
-def get_data_unet(data):
-    count = 0
-    for each in data:
-        try:
-            img = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+each[0].split("/")[-2], each[0].split("/")[-1]))
-            plt.imshow(img)
-            count += 1
-        except:
-            continue
+# def get_data_unet(data):
+#     count = 0
+#     for each in data:
+#         try:
+#             img = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+each[0].split("/")[-2], each[0].split("/")[-1]))
+#             plt.imshow(img)
+#             count += 1
+#         except:
+#             continue
 
-    print(count)
+#     print(count)
 
 
 class data_unet(Dataset):
@@ -34,17 +35,24 @@ class data_unet(Dataset):
         data_here = copy(data)
         data_here.sort(key = lambda x: x[0])
         self.data = []
-        for pos in range(len(data_here)):
+        pos = 0
+        while True:
+            if pos >= len(data_here):
+                break
             prefix = data_here[pos][0].split("/")[-1].split("_")[0]
             temp_pos = pos
             while True:
                 temp_pos += 1
+                if temp_pos >= len(data_here):
+                    break
+                # pu.db
                 prefix_here = data_here[temp_pos][0].split("/")[-1].split("_")[0]
                 if prefix_here != prefix:
                     break
             for i in range(pos, temp_pos):
                 for j in range(i + 1, temp_pos):
                     self.data.append((data_here[i], data_here[j]))
+            pos = temp_pos
 
 
     def __len__(self):
