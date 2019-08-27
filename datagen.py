@@ -2,13 +2,66 @@ from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 import numpy as np
 import random
-
+from skimage import io, transform
+import os
+import matplotlib.pyplot as plt
+import pudb
 from imgaug import augmenters as iaa
+from torch.utils.data import Dataset
+from copy import copy
+
 seq = iaa.Sequential([
     iaa.Crop(px=(0, 16)), # crop images from each side by 0 to 16px (randomly chosen)
     iaa.Fliplr(0.5), # horizontally flip 50% of the images
     iaa.GaussianBlur(sigma=(0, 3.0)) # blur images with a sigma of 0 to 3.0
 ])
+
+def get_data_unet(data):
+    count = 0
+    for each in data:
+        try:
+            img = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+each[0].split("/")[-2], each[0].split("/")[-1]))
+            plt.imshow(img)
+            count += 1
+        except:
+            continue
+
+    print(count)
+
+
+class data_unet(Dataset):
+    def __init__(self, data):
+        data_here = copy(data)
+        data_here.sort(key = lambda x: x[0])
+        self.data = []
+        for pos in range(len(data_here)):
+            prefix = data_here[pos][0].split("/")[-1].split("_")[0]
+            temp_pos = pos
+            while True:
+                temp_pos += 1
+                prefix_here = data_here[temp_pos][0].split("/")[-1].split("_")[0]
+                if prefix_here != prefix:
+                    break
+            for i in range(pos, temp_pos):
+                for j in range(i + 1, temp_pos):
+                    self.data.append((data_here[i], data_here[j]))
+
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        imgs = copy(self.data[idx])
+        img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
+        img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
+
+        imgs[0][0] = img_1
+        imgs[1][0] = img_2
+        return imgs
+
+
 
 
 def get_data(image_filenames, type_dict, files, input_shape, batch_size, tv = 't'):
@@ -19,7 +72,7 @@ def get_data(image_filenames, type_dict, files, input_shape, batch_size, tv = 't
     Y = []
     count = 0
     while j < len(batch_x):
-        # print str(j)+"/"+str(len(batch_x))
+        # print( str(j)+"/"+str(len(batch_x)))
         label = 0
         if (count == 0 and pos):
             X = []
@@ -84,7 +137,7 @@ def get_data_hot(image_filenames, type_dict, files, input_shape, batch_size, tv 
     while True:
         j = 0
         while j < len(batch_x):
-            # print str(j)+"/"+str(len(batch_x))
+            # print( str(j)+"/"+str(len(batch_x)))
             label = [0,1]
             if (count == 0 and pos):
                 X = []
@@ -148,9 +201,9 @@ def get_data_hot_unit(image_filenames, type_dict, files, input_shape, batch_size
     while True:
         j = 0
         while j < len(batch_x):
-            # print str(j)+"/"+str(len(batch_x))
+            # print( str(j)+"/"+str(len(batch_x)))
             label = [1.0]
-            # print("In datagen")
+            # print(("In datagen"))
             if (count == 0):
                 X = []
                 Y = []
@@ -194,7 +247,7 @@ def get_data_ratio(image_filenames, type_dict, files, input_shape, batch_size, r
     Y = []
     count = 0
     while j < len(batch_x):
-        # print str(j)+"/"+str(len(batch_x))
+        # print( str(j)+"/"+str(len(batch_x)))
         label = 0
         if (count == 0):
             X = []
@@ -255,7 +308,7 @@ def get_data_ratio_wild(image_filenames, type_dict, files, input_shape, batch_si
     Y = []
     count = 0
     while j < len(batch_x):
-        # print (str(j)+"/"+str(len(batch_x)))
+        # print( (str(j)+"/"+str(len(batch_x))))
         label = 0
         if (count == 0):
             X = []
@@ -320,7 +373,7 @@ def get_data_hot_wild(image_filenames, type_dict, files, input_shape, batch_size
     while True:
         j = 0
         while j < len(batch_x):
-            # print str(j)+"/"+str(len(batch_x))
+            # print( str(j)+"/"+str(len(batch_x)))
             label = [0,1]
             if (count == 0 and pos):
                 X = []
@@ -384,7 +437,7 @@ def get_data_hot_wild_ratio(image_filenames, type_dict, files, files_pair, input
     while True:
         j = 0
         while j < len(files_pair):
-            # print str(j)+"/"+str(len(batch_x))
+            # print( str(j)+"/"+str(len(batch_x)))
             label = [0,1]
             if (count == 0):
                 X = []
@@ -438,7 +491,7 @@ def get_data_hot_wild_ratio_pred(image_filenames, type_dict, files, files_pair, 
     while True:
         j = 0
         while j < len(files_pair):
-            print str(j)+"/"+str(len(files_pair))
+            print( str(j)+"/"+str(len(files_pair)))
             label = [0,1]
             if (count == 0):
                 X = []
@@ -482,7 +535,7 @@ def get_data_hot_wild_ratio_pred(image_filenames, type_dict, files, files_pair, 
                 X_arr = np.array(X)
                 count = 0
                 yield [X_arr[:,0], X_arr[:,1]]
-                print("\n\nResume iter\n\n")
+                print(("\n\nResume iter\n\n"))
 
 def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files_pair, input_shape, batch_size, ratio = 0.1, tv = 't'):
     j = 0
@@ -493,7 +546,7 @@ def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files
     # while True:
     #     j = 0
     while j < len(files_pair):
-        print str(j)+"/"+str(len(files_pair))
+        print( str(j)+"/"+str(len(files_pair)))
         label = [0,1]
         if (count == 0):
             X = []
@@ -537,7 +590,7 @@ def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files
             X_arr = np.array(X)
             count = 0
             yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
-            print("\n\nResume iter\n\n")
+            print(("\n\nResume iter\n\n"))
             old_j = j
 
 
@@ -547,7 +600,7 @@ def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files
     # Y = []
     # count = 0
     # while j < len(files_pair):
-    #     print str(j)+"/"+str(len(files_pair))
+    #     print( str(j)+"/"+str(len(files_pair)))
     #     label = [0,1]
     #     # if (count == 0):
     #     # pu.db
@@ -591,4 +644,4 @@ def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files
     #         X_arr = np.array(X)
     #         count = 0
     #         yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
-    #         print("\n\nResume iter\n\n")
+    #         print(("\n\nResume iter\n\n"))
