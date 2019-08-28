@@ -12,19 +12,33 @@ import matplotlib.pyplot as plt
 import pudb
 
 BATCH_SIZE = 4
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class unet_torch(nn.Module):
     def __init__(self):
         super(unet_torch, self).__init__()
         self.pool = nn.MaxPool2d(2, 2)
         
-        self.conv1 = nn.Conv2d(3, 64, 3)
-        self.conv2 = nn.Conv2d(64, 128, 3)
-        self.conv3 = nn.Conv2d(128, 256, 3)
-        self.conv4 = nn.Conv2d(256, 512, 3)
-        self.conv5 = nn.Conv2d(512, 1024, 3)
+        self.conv1 = nn.Conv2d(3, 64, 3, padding = 1)
+        self.conv2 = nn.Conv2d(64, 128, 3, padding = 1)
+        self.conv3 = nn.Conv2d(128, 256, 3, padding = 1)
+        self.conv4 = nn.Conv2d(256, 512, 3, padding = 1)
+        self.conv5 = nn.Conv2d(512, 1024, 3, padding = 1)
 
-        self.fc = nn.Linear(24 * 24 * 1024, 200 * 4)
+        self.fc_1 = nn.Linear(16 * 16 * 1024, 200 * 4)
+        self.fc_2 = nn.Linear(200 * 4, 16 * 16 * 1024)
+
+        self.upsample_5 = nn.Upsample(scale_factor = 2.0)
+        self.conv5_up = nn.Conv2d(1024, 512, 3, padding = 1)
+        self.upsample_4 = nn.Upsample(scale_factor = 2.0)
+        self.conv4_up = nn.Conv2d(512, 256, 3, padding = 1)
+        self.upsample_3 = nn.Upsample(scale_factor = 2.0)
+        self.conv3_up = nn.Conv2d(256, 128, 3, padding = 1)
+        self.upsample_2 = nn.Upsample(scale_factor = 2.0)
+        self.conv2_up = nn.Conv2d(128, 64, 3, padding = 1)
+        self.conv1_up = nn.Conv2d(64, 3, 3, padding = 1)
+
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -33,13 +47,22 @@ class unet_torch(nn.Module):
         x = self.pool(F.relu(self.conv4(x)))
         x = F.relu(self.conv5(x))
 
-        x = x.view(-1)
-        x = self.fc(x)
+        x = x.view(-1, 16 * 16 * 1024)
+        x = self.fc_1(x)
         x = x.view(-1, 4, 200)
 
         R = torch.from_numpy(self.create_rot_matrix(1, 4))
 
-        x = torch.matmul(R.float(), x)
+        x = torch.matmul(R.float().to(device), x)
+        x = x.view(-1, 200 * 4)
+        x = self.fc_2(x)
+        x = x.view(-1, 1024, 16, 16)
+
+        x = F.relu(self.conv5_up(self.upsample_5(x)))
+        x = F.relu(self.conv4_up(self.upsample_4(x)))
+        x = F.relu(self.conv3_up(self.upsample_3(x)))
+        x = F.relu(self.conv2_up(self.upsample_2(x)))
+        x = self.conv1_up(x)
 
         return x
 
@@ -93,8 +116,9 @@ dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers
 # for i_batch, sample_batched in enumerate(dataloader):
 #     pu.db
 print("Data loading complete")
-net = unet_torch()
+net = unet_torch().to(device)
 for each in dataloader:
+    k = net(each[0][0].float().to(device))
     pu.db
     # plt.imshow(each[0][0])
     # plt.show()
