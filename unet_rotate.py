@@ -4,24 +4,27 @@
 # from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 # from keras import backend as K
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 import torch
+from torch.utils.data import DataLoader
 from datagen import *
 import matplotlib.pyplot as plt
 import pudb
+
+BATCH_SIZE = 4
 
 class unet_torch(nn.Module):
     def __init__(self):
         super(unet_torch, self).__init__()
         self.pool = nn.MaxPool2d(2, 2)
         
-        self.conv1 = nn.Conv2d(3, 64, 3, padding = (0, 1, 1))
-        self.conv2 = nn.Conv2d(64, 128, 3, padding = (0, 1, 1))
-        self.conv3 = nn.Conv2d(128, 256, 3, padding = (0, 1, 1))
-        self.conv4 = nn.Conv2d(256, 512, 3, padding = (0, 1, 1))
-        self.conv5 = nn.Conv2d(512, 1024, 3, padding = (0, 1, 1))
+        self.conv1 = nn.Conv2d(3, 64, 3)
+        self.conv2 = nn.Conv2d(64, 128, 3)
+        self.conv3 = nn.Conv2d(128, 256, 3)
+        self.conv4 = nn.Conv2d(256, 512, 3)
+        self.conv5 = nn.Conv2d(512, 1024, 3)
 
-        self.fc = nn.Linear(256 * 256 * 3, 200 * 4)
+        self.fc = nn.Linear(24 * 24 * 1024, 200 * 4)
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -30,12 +33,15 @@ class unet_torch(nn.Module):
         x = self.pool(F.relu(self.conv4(x)))
         x = F.relu(self.conv5(x))
 
+        x = x.view(-1)
         x = self.fc(x)
         x = x.view(-1, 4, 200)
 
         R = torch.from_numpy(self.create_rot_matrix(1, 4))
 
-        x = torch.matmul(R, x, requires_grad = True)
+        x = torch.matmul(R.float(), x)
+
+        return x
 
     def abs_angle(self, pos):
         if (pos == 0):
@@ -57,13 +63,13 @@ class unet_torch(nn.Module):
 
     def get_angle_diff(self, init_pos, final_pos):
         # pu.db
-        ang = - (abs_angle(int(final_pos)) - abs_angle(int(init_pos)))
+        ang = - (self.abs_angle(int(final_pos)) - self.abs_angle(int(init_pos)))
         # if (ang < 0):
         #     ang = 2 * np.pi - ang
         return ang
 
     def create_rot_matrix(self, init_pos, final_pos):
-        ang = get_angle_diff(init_pos, final_pos)
+        ang = self.get_angle_diff(init_pos, final_pos)
         R = np.array([[np.cos(ang), -np.sin(ang), 0, 0],\
                       [np.sin(ang),  np.cos(ang), 0, 0],\
                       [0, 0, 1, 0],\
@@ -80,17 +86,19 @@ while True:
         break
     files.append(l.strip().split(" "))
 f.close()
-
+print("Data loading starts")
 data = data_unet(files)
-print("Data loaded")
+dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 4)
 
-for each in data:
-    pu.db
-    plt.imshow(each[0][0])
-    plt.show()
-
+# for i_batch, sample_batched in enumerate(dataloader):
+#     pu.db
+print("Data loading complete")
 net = unet_torch()
-pu.db
+for each in dataloader:
+    pu.db
+    # plt.imshow(each[0][0])
+    # plt.show()
+print("Data loaded")
 
 
 

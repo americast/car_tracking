@@ -4,6 +4,7 @@ from keras.applications.resnet50 import preprocess_input
 import numpy as np
 import random
 from skimage import io, transform
+from skimage.transform import resize
 import os
 # import matplotlib.pyplot as plt
 import pudb
@@ -65,8 +66,11 @@ class data_unet(Dataset):
         img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
         img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
 
-        imgs[0][0] = img_1
-        imgs[1][0] = img_2
+        img_1 = resize(img_1, (256, 256, 3)).transpose((2,0,1))
+        img_2 = resize(img_2, (256, 256, 3)).transpose((2,0,1))
+        # pu.db
+        imgs[0][0] = torch.from_numpy(np.array(img_1))
+        imgs[1][0] = torch.from_numpy(np.array(img_2))
         return imgs
 
 
