@@ -72,12 +72,56 @@ class data_unet(Dataset):
             img_2 = np.zeros((256, 256, 3))
         img_1 = torch.from_numpy(resize(img_1, (256, 256, 3)).transpose((2,0,1)))
         img_2 = torch.from_numpy(resize(img_2, (256, 256, 3)).transpose((2,0,1)))
+
+        view_1 = int(imgs[0][-1])
+        view_2 = int(imgs[1][-1])
+        R = torch.from_numpy(self.create_rot_matrix(view_1, view_2))
         # pu.db
         # imgs[0][0] = torch.from_numpy(np.array(img_1))
         # imgs[1][0] = torch.from_numpy(np.array(img_2))
         # print(imgs[0][-1])
         # print(imgs[1][-1])
-        return [img_1, float(imgs[0][-1]), img_2, float(imgs[1][-1])]
+        return [img_1, R, img_2]
+
+
+    def abs_angle(self, pos):
+        if (pos == 0):
+            return 0.
+        elif (pos == 1):
+            return np.pi
+        elif (pos == 2):
+            return np.pi / 2
+        elif (pos == 3):
+            return np.pi / 4
+        elif (pos == 4):
+            return 3 * np.pi / 4
+        elif (pos == 5):
+            return 3 * np.pi / 2
+        elif (pos == 6):
+            return 7 * np.pi / 4
+        elif (pos == 7):
+            return 5 * np.pi / 4
+        else:
+            print("No match :(")
+            sys.exit(0)
+
+
+    def get_angle_diff(self, init_pos, final_pos):
+        # pu.db
+        ang = - (self.abs_angle(final_pos) - self.abs_angle(init_pos))
+        # if (ang < 0):
+        #     ang = 2 * np.pi - ang
+        return ang
+
+    def create_rot_matrix(self, init_pos, final_pos):
+        ang = self.get_angle_diff(init_pos, final_pos)
+        R = np.array([[np.cos(ang), -np.sin(ang), 0, 0],\
+                      [np.sin(ang),  np.cos(ang), 0, 0],\
+                      [0, 0, 1, 0],\
+                      [0, 0, 0, 1]])
+
+        return R
+
 
 
 

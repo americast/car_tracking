@@ -44,7 +44,7 @@ class unet_torch(nn.Module):
         self.conv1_up = nn.Conv2d(64, 3, 3, padding = 1)
 
 
-    def forward(self, x, view_1, view_2):
+    def forward(self, x, R):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         x = self.pool(F.relu(self.conv3(x)))
@@ -55,12 +55,11 @@ class unet_torch(nn.Module):
         x = self.fc_1(x)
         x = x.view(-1, 4, 200)
 
-        R = []
         # improve this
-        for i in range(x.shape[0]):
-            R.append(self.create_rot_matrix(view_1[i], view_2[i]))
-        R = torch.from_numpy(np.array(R))
-        x = torch.matmul(R.float().to(device), x)
+        # for i in range(x.shape[0]):
+        #     R.append(self.create_rot_matrix(view_1[i], view_2[i]))
+        # R = torch.from_numpy(np.array(R))
+        x = torch.matmul(R, x)
         x = x.view(-1, 200 * 4)
         x = self.fc_2(x)
         x = x.view(-1, 1024, 16, 16)
@@ -73,44 +72,6 @@ class unet_torch(nn.Module):
 
         return x
 
-    def abs_angle(self, pos):
-        if (pos == 0):
-            return 0.
-        elif (pos == 1):
-            return np.pi
-        elif (pos == 2):
-            return np.pi / 2
-        elif (pos == 3):
-            return np.pi / 4
-        elif (pos == 4):
-            return 3 * np.pi / 4
-        elif (pos == 5):
-            return 3 * np.pi / 2
-        elif (pos == 6):
-            return 7 * np.pi / 4
-        elif (pos == 7):
-            return 5 * np.pi / 4
-        else:
-            print("No match :(")
-            sys.exit(0)
-
-
-    def get_angle_diff(self, init_pos, final_pos):
-        # pu.db
-        ang = - (self.abs_angle(final_pos) - self.abs_angle(init_pos))
-        # if (ang < 0):
-        #     ang = 2 * np.pi - ang
-        return ang
-
-    def create_rot_matrix(self, init_pos, final_pos):
-        ang = self.get_angle_diff(init_pos, final_pos)
-        R = np.array([[np.cos(ang), -np.sin(ang), 0, 0],\
-                      [np.sin(ang),  np.cos(ang), 0, 0],\
-                      [0, 0, 1, 0],\
-                      [0, 0, 0, 1]])
-
-        return R
-
 f = open("../VehicleReIDKeyPointData/keypoint_train.txt", "r")
 files = []
 while True:
@@ -122,7 +83,7 @@ while True:
 f.close()
 print("Data loading starts")
 data = data_unet(files)
-dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 4)
+dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 120, pin_memory=True)
 
 # for i_batch, sample_batched in enumerate(dataloader):
 #     pu.db
@@ -145,18 +106,19 @@ for _ in range(EPOCHS):
     i = 0
     for i, each in enumerate(dataloader):
         # i+=1
-        print("%.2f"% ((i + 1) * 100.0 / len(dataloader))+"%", end="\r")
+        print("%.2f"% ((i + 1) * 100.0 / len(dataloader))+"%", end="")
         for every in each[0]:
             if int(sum(sum(sum(every)))) == 0:
                 continue
         # pu.db
         optimiser.zero_grad()
-        out = net(each[0].float().to(device), torch.from_numpy(np.array(each[1])).float().to(device), torch.from_numpy(np.array(each[3])).float().to(device))
-
+        out = net(each[0].float().to(device), each[1].float().to(device))
+        # pu.db
         loss = criterion(out, each[2].float().to(device))
         loss_net.append(loss)
         loss.backward()
         optimiser.step()
+        print(", loss: %.2f" %(np.sum(loss_net)/len(loss_net)), end="\r")
         # for f in net.parameters():
         #     f.data.sub_(f.grad.data * learning_rate)
 
