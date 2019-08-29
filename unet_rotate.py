@@ -6,12 +6,16 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+from torch.nn import DataParallel
+import torch.optim as optim
 from torch.utils.data import DataLoader
 from datagen import *
 import matplotlib.pyplot as plt
 import pudb
+import sys
 
-BATCH_SIZE = 4
+BATCH_SIZE = 30
+EPOCHS = 100
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -40,7 +44,7 @@ class unet_torch(nn.Module):
         self.conv1_up = nn.Conv2d(64, 3, 3, padding = 1)
 
 
-    def forward(self, x):
+    def forward(self, x, view_1, view_2):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
         x = self.pool(F.relu(self.conv3(x)))
@@ -51,8 +55,11 @@ class unet_torch(nn.Module):
         x = self.fc_1(x)
         x = x.view(-1, 4, 200)
 
-        R = torch.from_numpy(self.create_rot_matrix(1, 4))
-
+        R = []
+        # improve this
+        for i in range(x.shape[0]):
+            R.append(self.create_rot_matrix(view_1[i], view_2[i]))
+        R = torch.from_numpy(np.array(R))
         x = torch.matmul(R.float().to(device), x)
         x = x.view(-1, 200 * 4)
         x = self.fc_2(x)
@@ -83,10 +90,14 @@ class unet_torch(nn.Module):
             return 7 * np.pi / 4
         elif (pos == 7):
             return 5 * np.pi / 4
+        else:
+            print("No match :(")
+            sys.exit(0)
+
 
     def get_angle_diff(self, init_pos, final_pos):
         # pu.db
-        ang = - (self.abs_angle(int(final_pos)) - self.abs_angle(int(init_pos)))
+        ang = - (self.abs_angle(final_pos) - self.abs_angle(init_pos))
         # if (ang < 0):
         #     ang = 2 * np.pi - ang
         return ang
@@ -117,11 +128,49 @@ dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers
 #     pu.db
 print("Data loading complete")
 net = unet_torch().to(device)
-for each in dataloader:
-    k = net(each[0][0].float().to(device))
-    pu.db
-    # plt.imshow(each[0][0])
-    # plt.show()
+
+if torch.cuda.device_count() > 1:
+  print("Let's use", torch.cuda.device_count(), "GPUs!")
+  # dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+  net = nn.DataParallel(net)
+
+criterion = nn.MSELoss()
+optimiser = optim.Adam(net.parameters(), lr=0.01)
+loss_max = 9999999
+print()
+# learning_rate = 0.01
+for _ in range(EPOCHS):
+    loss_net = []
+    print(str(_+1)+"/"+str(EPOCHS))
+    i = 0
+    for i, each in enumerate(dataloader):
+        # i+=1
+        print("%.2f"% ((i + 1) * 100.0 / len(dataloader))+"%", end="\r")
+        for every in each[0]:
+            if int(sum(sum(sum(every)))) == 0:
+                continue
+        # pu.db
+        optimiser.zero_grad()
+        out = net(each[0].float().to(device), torch.from_numpy(np.array(each[1])).float().to(device), torch.from_numpy(np.array(each[3])).float().to(device))
+
+        loss = criterion(out, each[2].float().to(device))
+        loss_net.append(loss)
+        loss.backward()
+        optimiser.step()
+        # for f in net.parameters():
+        #     f.data.sub_(f.grad.data * learning_rate)
+
+
+        # pu.db
+        # plt.imshow(each[0][0])
+        # plt.show()
+    print()
+    loss_now = np.sum(loss_net)/len(loss_net)
+    print("loss: "+str(loss_now))
+    if (loss_now < loss_max):
+        loss_now = loss_max
+        torch.save(net, "./rotate_model.pth")
+        print("Model saved")
 print("Data loaded")
 
 
@@ -186,5 +235,5 @@ print("Data loaded")
     
 #     return model
 
-model = unet()
-pu.db
+# model = unet()
+# pu.db
