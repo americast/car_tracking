@@ -83,7 +83,7 @@ while True:
 f.close()
 print("Data loading starts")
 data = data_unet(files)
-dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 0, pin_memory=True)
+dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 4, pin_memory=True)
 
 # for i_batch, sample_batched in enumerate(dataloader):
 #     pu.db
