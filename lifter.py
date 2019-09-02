@@ -32,7 +32,11 @@ def common_model(in_dim):
     x = Dense(128, activation='relu')(x)
     x = Dense(16, activation='relu')(x)
     x = Dense(1, activation='sigmoid')(x)
-    return Model(input, x)
+    model = Model(input, x)
+    model.compile(optimizer='adam',
+              loss=custom_loss(layer), # Call the loss function with the selected layer
+              metrics=['accuracy'])
+    return model
 
 f = open("../VehicleReIDKeyPointData/keypoint_train.txt", "r")
 files = {}

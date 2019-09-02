@@ -14,32 +14,32 @@ import matplotlib.pyplot as plt
 import pudb
 import sys
 
-BATCH_SIZE = 30
-EPOCHS = 100
+BATCH_SIZE = 200
+EPOCHS = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class unet_torch(nn.Module):
     def __init__(self):
         super(unet_torch, self).__init__()
-        self.pool = nn.MaxPool2d(2, 2)
+        self.pool = nn.MaxPool2d(4, 4)
         
         self.conv1 = nn.Conv2d(3, 64, 3, padding = 1)
         self.conv2 = nn.Conv2d(64, 128, 3, padding = 1)
         self.conv3 = nn.Conv2d(128, 256, 3, padding = 1)
-        self.conv4 = nn.Conv2d(256, 512, 3, padding = 1)
-        self.conv5 = nn.Conv2d(512, 1024, 3, padding = 1)
+        # self.conv4 = nn.Conv2d(256, 512, 3, padding = 1)
+        # self.conv5 = nn.Conv2d(512, 1024, 3, padding = 1)
 
-        self.fc_1 = nn.Linear(16 * 16 * 1024, 200 * 4)
-        self.fc_2 = nn.Linear(200 * 4, 16 * 16 * 1024)
+        self.fc_1 = nn.Linear(16 * 16 * 256, 200 * 4)
+        self.fc_2 = nn.Linear(200 * 4, 16 * 16 * 256)
 
-        self.upsample_5 = nn.Upsample(scale_factor = 2.0)
-        self.conv5_up = nn.Conv2d(1024, 512, 3, padding = 1)
-        self.upsample_4 = nn.Upsample(scale_factor = 2.0)
-        self.conv4_up = nn.Conv2d(512, 256, 3, padding = 1)
-        self.upsample_3 = nn.Upsample(scale_factor = 2.0)
+        # self.upsample_5 = nn.Upsample(scale_factor = 2.0)
+        # self.conv5_up = nn.Conv2d(1024, 512, 3, padding = 1)
+        # self.upsample_4 = nn.Upsample(scale_factor = 2.0)
+        # self.conv4_up = nn.Conv2d(512, 256, 3, padding = 1)
+        self.upsample_3 = nn.Upsample(scale_factor = 4.0)
         self.conv3_up = nn.Conv2d(256, 128, 3, padding = 1)
-        self.upsample_2 = nn.Upsample(scale_factor = 2.0)
+        self.upsample_2 = nn.Upsample(scale_factor = 4.0)
         self.conv2_up = nn.Conv2d(128, 64, 3, padding = 1)
         self.conv1_up = nn.Conv2d(64, 3, 3, padding = 1)
 
@@ -47,11 +47,11 @@ class unet_torch(nn.Module):
     def forward(self, x, R):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
-        x = self.pool(F.relu(self.conv3(x)))
-        x = self.pool(F.relu(self.conv4(x)))
-        x = F.relu(self.conv5(x))
+        x = F.relu(self.conv3(x))
+        # x = self.pool(F.relu(self.conv4(x)))
+        # x = F.relu(self.conv5(x))
 
-        x = x.view(-1, 16 * 16 * 1024)
+        x = x.view(-1, 16 * 16 * 256)
         x = self.fc_1(x)
         x = x.view(-1, 4, 200)
 
@@ -62,10 +62,10 @@ class unet_torch(nn.Module):
         x = torch.matmul(R, x)
         x = x.view(-1, 200 * 4)
         x = self.fc_2(x)
-        x = x.view(-1, 1024, 16, 16)
+        x = x.view(-1, 256, 16, 16)
 
-        x = F.relu(self.conv5_up(self.upsample_5(x)))
-        x = F.relu(self.conv4_up(self.upsample_4(x)))
+        # x = F.relu(self.conv5_up(self.upsample_5(x)))
+        # x = F.relu(self.conv4_up(self.upsample_4(x)))
         x = F.relu(self.conv3_up(self.upsample_3(x)))
         x = F.relu(self.conv2_up(self.upsample_2(x)))
         x = self.conv1_up(x)
@@ -83,7 +83,7 @@ while True:
 f.close()
 print("Data loading starts")
 data = data_unet(files)
-dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 120, pin_memory=True)
+dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 0, pin_memory=True)
 
 # for i_batch, sample_batched in enumerate(dataloader):
 #     pu.db
@@ -99,10 +99,11 @@ criterion = nn.MSELoss()
 optimiser = optim.Adam(net.parameters(), lr=0.01)
 loss_max = 9999999
 print()
+print("len: "+str(len(dataloader)))
 # learning_rate = 0.01
 for _ in range(EPOCHS):
     loss_net = []
-    print(str(_+1)+"/"+str(EPOCHS))
+    # print(str(_+1)+"/"+str(EPOCHS))
     i = 0
     for i, each in enumerate(dataloader):
         # i+=1
@@ -119,6 +120,7 @@ for _ in range(EPOCHS):
         loss.backward()
         optimiser.step()
         print(", loss: %.2f" %(np.sum(loss_net)/len(loss_net)), end="\r")
+        # if (i == 2): break
         # for f in net.parameters():
         #     f.data.sub_(f.grad.data * learning_rate)
 
@@ -131,9 +133,8 @@ for _ in range(EPOCHS):
     print("loss: "+str(loss_now))
     if (loss_now < loss_max):
         loss_now = loss_max
-        torch.save(net, "./rotate_model.pth")
+        torch.save(net.state_dict(), "./rotate_model.pth")
         print("Model saved")
-print("Data loaded")
 
 
 

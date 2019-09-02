@@ -62,6 +62,7 @@ class data_unet(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
+        # print("idx:" +str(idx))
         imgs = copy(self.data[idx])
         img_1, img_2 = 0, 0
         try:
@@ -70,17 +71,21 @@ class data_unet(Dataset):
         except:
             img_1 = np.zeros((256, 256, 3))
             img_2 = np.zeros((256, 256, 3))
-        img_1 = torch.from_numpy(resize(img_1, (256, 256, 3)).transpose((2,0,1)))
-        img_2 = torch.from_numpy(resize(img_2, (256, 256, 3)).transpose((2,0,1)))
+        img_1 = resize(img_1, (256, 256, 3)).transpose((2,0,1))
+        img_2 = resize(img_2, (256, 256, 3)).transpose((2,0,1))
 
+        # print("problem is: "+str(imgs[0][-1]))
         view_1 = int(imgs[0][-1])
         view_2 = int(imgs[1][-1])
-        R = torch.from_numpy(self.create_rot_matrix(view_1, view_2))
+        R = self.create_rot_matrix(view_1, view_2)
         # pu.db
         # imgs[0][0] = torch.from_numpy(np.array(img_1))
         # imgs[1][0] = torch.from_numpy(np.array(img_2))
         # print(imgs[0][-1])
         # print(imgs[1][-1])
+        # print(img_1.shape)
+        # print(R.shape)
+        # print(img_2.shape)
         return [img_1, R, img_2]
 
 
