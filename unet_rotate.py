@@ -13,9 +13,10 @@ from datagen import *
 import matplotlib.pyplot as plt
 import pudb
 import sys
+import numpy as np
 
 BATCH_SIZE = 200
-EPOCHS = 5
+EPOCHS = 50
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -72,7 +73,7 @@ class unet_torch(nn.Module):
 
         return x
 
-f = open("../VehicleReIDKeyPointData/keypoint_train.txt", "r")
+f = open("../VehicleReIDKeyPointData/keypoint_train_corrected.txt", "r")
 files = []
 while True:
     l = f.readline()
@@ -82,12 +83,12 @@ while True:
     files.append(l.strip().split(" "))
 f.close()
 print("Data loading starts")
-data = data_unet(files)
-dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 4, pin_memory=True)
 
 # for i_batch, sample_batched in enumerate(dataloader):
 #     pu.db
 print("Data loading complete")
+data = data_unet(files[:100])
+dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = False, num_workers = 40, pin_memory=True)
 net = unet_torch().to(device)
 
 if torch.cuda.device_count() > 1:
@@ -97,29 +98,31 @@ if torch.cuda.device_count() > 1:
 
 criterion = nn.MSELoss()
 optimiser = optim.Adam(net.parameters(), lr=0.01)
-loss_max = 9999999
+loss_min = np.inf
+print("len: "+str(len(data)))
 print()
-print("len: "+str(len(dataloader)))
 # learning_rate = 0.01
 for _ in range(EPOCHS):
+    # print("_ is: "+str(_))
     loss_net = []
-    # print(str(_+1)+"/"+str(EPOCHS))
+    print(str(_+1)+"/"+str(EPOCHS))
     i = 0
     for i, each in enumerate(dataloader):
+        # print("len: "+str(len(data)))
         # i+=1
         print("%.2f"% ((i + 1) * 100.0 / len(dataloader))+"%", end="")
         for every in each[0]:
             if int(sum(sum(sum(every)))) == 0:
                 continue
         # pu.db
-        optimiser.zero_grad()
         out = net(each[0].float().to(device), each[1].float().to(device))
         # pu.db
         loss = criterion(out, each[2].float().to(device))
         loss_net.append(loss)
+        optimiser.zero_grad()
         loss.backward()
         optimiser.step()
-        print(", loss: %.2f" %(np.sum(loss_net)/len(loss_net)), end="\r")
+        print(", loss: %.6f" %(np.sum(loss_net)/len(loss_net)/(256 * 256)), end="\r")
         # if (i == 2): break
         # for f in net.parameters():
         #     f.data.sub_(f.grad.data * learning_rate)
@@ -129,12 +132,13 @@ for _ in range(EPOCHS):
         # plt.imshow(each[0][0])
         # plt.show()
     print()
-    loss_now = np.sum(loss_net)/len(loss_net)
-    print("loss: "+str(loss_now))
-    if (loss_now < loss_max):
-        loss_now = loss_max
+    loss_now = np.sum(loss_net)/len(loss_net)/(256 * 256)
+    # print("Final loss: "+str(loss_now))
+    if (loss_now < loss_min):
+        loss_min = loss_now
         torch.save(net.state_dict(), "./rotate_model.pth")
         print("Model saved")
+    # del dataloader
 
 
 

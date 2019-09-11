@@ -52,7 +52,7 @@ class data_unet(Dataset):
                     break
             for i in range(pos, temp_pos):
                 for j in range(i + 1, temp_pos):
-                    self.data.append((data_here[i], data_here[j]))
+                    self.data.append([data_here[i], data_here[j]])
             pos = temp_pos
 
 
@@ -63,14 +63,11 @@ class data_unet(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
         # print("idx:" +str(idx))
-        imgs = copy(self.data[idx])
+        imgs = self.data[idx % len(self.data)]
         img_1, img_2 = 0, 0
-        try:
-            img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
-            img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
-        except:
-            img_1 = np.zeros((256, 256, 3))
-            img_2 = np.zeros((256, 256, 3))
+        img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
+        img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
+
         img_1 = resize(img_1, (256, 256, 3)).transpose((2,0,1))
         img_2 = resize(img_2, (256, 256, 3)).transpose((2,0,1))
 
