@@ -74,7 +74,7 @@ class data_unet(Dataset):
         # print("problem is: "+str(imgs[0][-1]))
         view_1 = int(imgs[0][-1])
         view_2 = int(imgs[1][-1])
-        R = self.create_rot_matrix(view_1, view_2)
+        R = self.create_rot_matrix(view_1, view_1)
         # pu.db
         # imgs[0][0] = torch.from_numpy(np.array(img_1))
         # imgs[1][0] = torch.from_numpy(np.array(img_2))
@@ -83,6 +83,9 @@ class data_unet(Dataset):
         # print(img_1.shape)
         # print(R.shape)
         # print(img_2.shape)
+        # print(imgs)
+        # print(view_1)
+        # print(view_2)
         return [img_1, R, img_2]
 
 
