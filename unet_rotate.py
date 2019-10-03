@@ -15,6 +15,7 @@ import pudb
 import sys
 import numpy as np
 import matplotlib
+from model import *
 matplotlib.use('Agg')
 
 
@@ -29,79 +30,6 @@ def out_to_view(out):
     out = np.transpose(out, (1,2,0))
     return out
 
-
-class unet_torch(nn.Module):
-    def __init__(self):
-        super(unet_torch, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(3, 64, 3, stride=1, padding=1),  # b, 16, 10, 10
-            nn.BatchNorm2d(64, affine=False),
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(64, 32, 3, stride=1, padding=1),  # b, 8, 3, 3
-            nn.BatchNorm2d(32, affine=False),
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2),  # b, 8, 2, 2
-            nn.Conv2d(32, 16, 3, stride=1, padding=1),  # b, 8, 3, 3
-            nn.BatchNorm2d(16, affine=False),
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2)  # b, 8, 2, 2
-            )
-        self.decoder = nn.Sequential(
-            nn.Upsample(scale_factor = 2.0),
-            nn.Conv2d(16, 32, 3, stride=1, padding=1),  # b, 16, 10, 10
-            nn.BatchNorm2d(32, affine=False),
-            nn.ReLU(True),
-            nn.Upsample(scale_factor = 2.0),
-            nn.Conv2d(32, 64, 3, stride=1, padding=1),  # b, 16, 10, 10
-            nn.BatchNorm2d(64, affine=False),
-            nn.Upsample(scale_factor = 2.0),
-            nn.Conv2d(64, 3, 3, stride=1, padding=1),  # b, 16, 10, 10
-            nn.BatchNorm2d(3, affine=False),
-            nn.Sigmoid()
-            )
-        self.fc =  nn.Linear(3528, 3528)
-
-    def forward(self, x, R):
-        x = self.encoder(x)
-        # pu.db
-        # print(x.shape)
-        # x = x.view(x.shape[0], -1)
-        # x = self.fc(x)
-        # x = x.view(x.shape[0], 8, 21, 21)
-        # print(x.shape)
-        # sys.exit(0)
-        x = self.decoder(x)
-        return x
-
-
-    # def forward(self, x, R):
-    #     x = self.pool(F.relu(self.conv1(x)))
-    #     x = self.pool(F.relu(self.conv2(x)))
-    #     x = F.relu(self.conv3(x))
-    #     # x = self.pool(F.relu(self.conv4(x)))
-    #     # x = F.relu(self.conv5(x))
-
-    #     # x = x.view(-1, 16 * 16 * 256)
-    #     # x = self.fc_1(x)
-    #     # x = x.view(-1, 4, 200)
-
-    #     # improve this
-    #     # for i in range(x.shape[0]):
-    #     #     R.append(self.create_rot_matrix(view_1[i], view_2[i]))
-    #     # R = torch.from_numpy(np.array(R))
-    #     # x = torch.matmul(R, x)
-    #     # x = x.view(-1, 200 * 4)
-    #     # x = self.fc_2(x)
-    #     # x = x.view(-1, 256, 16, 16)
-
-    #     # x = F.relu(self.conv5_up(self.upsample_5(x)))
-    #     # x = F.relu(self.conv4_up(self.upsample_4(x)))
-    #     x = F.relu(self.conv3_up(self.upsample_3(x)))
-    #     x = F.relu(self.conv2_up(self.upsample_2(x)))
-    #     x = F.relu(self.conv1_up(x))
-
-    #     return x
 
 f = open("../VehicleReIDKeyPointData/keypoint_train_corrected.txt", "r")
 files = []
@@ -118,6 +46,7 @@ print("Data loading starts")
 #     pu.db
 print("Data loading complete")
 data = data_unet(files[:1000])
+# data[400]
 dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 40, pin_memory=True)
 net = unet_torch().to(device)
 
@@ -147,11 +76,11 @@ for _ in range(EPOCHS):
         # pu.db
         out = net(each[0].float().to(device), each[1].float().to(device))
 
-        out_here = out.cpu().detach().numpy()
-        org_here = each[0].numpy()
+        # out_here = out.cpu().detach().numpy()
+        # org_here = each[0].numpy()
 
-        out_here = np.reshape(out_here, (out_here.shape[0], -1))
-        org_here = np.reshape(org_here, (org_here.shape[0], -1))
+        # out_here = np.reshape(out_here, (out_here.shape[0], -1))
+        # org_here = np.reshape(org_here, (org_here.shape[0], -1))
 
         # loss_avg = []
 
@@ -167,17 +96,17 @@ for _ in range(EPOCHS):
         # pu.db
         # if _ == 2 and i ==20:
         # pu.db
-        loss = criterion(out, each[0].float().to(device))
+        loss = criterion(out, each[2].float().to(device))
         loss_net.append(loss / len(each))
         optimiser.zero_grad()
         loss.backward()
         optimiser.step()
         print(", loss: %.6f" %(np.sum(loss_net)/(len(loss_net))), end="\r")
-        out = out.to("cpu")[0]
-        out = out.detach().numpy()
-        out = np.reshape(out, (3, 256, 256))
-        plt.imshow(np.transpose(out, ((1,2,0))))
-        plt.savefig("res_img/img_"+str(_)+"_"+str(i)+".png")
+        # out = out.to("cpu")[0]
+        # out = out.detach().numpy()
+        # out = np.reshape(out, (3, 256, 256))
+        # plt.imshow(np.transpose(out, ((1,2,0))))
+        # plt.savefig("res_img/img_"+str(_)+"_"+str(i)+".png")
         # pu.db
         # if (i == 2): break
         # for f in net.parameters():
@@ -192,7 +121,7 @@ for _ in range(EPOCHS):
     # print("Final loss: "+str(loss_now))
     if (loss_now < loss_min):
         loss_min = loss_now
-        torch.save(net.state_dict(), "./rotate_model_auto_red_working.pth")
+        torch.save(net.state_dict(), "./rotate_fresh.pth")
         print("Model saved")
     # del dataloader
 

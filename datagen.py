@@ -11,6 +11,10 @@ import pudb
 from imgaug import augmenters as iaa
 from torch.utils.data import Dataset
 from copy import copy
+import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
 
 seq = iaa.Sequential([
     iaa.Crop(px=(0, 16)), # crop images from each side by 0 to 16px (randomly chosen)
@@ -29,7 +33,9 @@ seq = iaa.Sequential([
 #             continue
 
 #     print(count)
-
+import math
+def std_norm(x):
+    return math.exp(-0.5 * (x ** 2))
 
 class data_unet(Dataset):
     def __init__(self, data):
@@ -68,8 +74,25 @@ class data_unet(Dataset):
         img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
         img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
 
-        img_1 = resize(img_1, (256, 256, 3)).transpose((2,0,1))
-        img_2 = resize(img_2, (256, 256, 3)).transpose((2,0,1))
+        img_1 = resize(img_1, (256, 256, 3))
+        img_2 = resize(img_2, (256, 256, 3))
+
+        for i in range(256):
+            for j in range(256):
+                dist = (((i - 128)**2 + (j - 128)**2)**(0.5))/80
+                val = std_norm(dist)
+                img_1[i, j, :] *= val
+                img_2[i, j, :] *= val
+
+        # pu.db
+        # plt.imshow(img_1)
+        # plt.savefig("../letssee.png")
+        # plt.imshow(img_2)
+        # plt.savefig("../letssee_rot.png")
+        # print("Pics saved")
+
+        img_1 = img_1.transpose((2,0,1))
+        img_2 = img_2.transpose((2,0,1))
 
         # print("problem is: "+str(imgs[0][-1]))
         view_1 = int(imgs[0][-1])
