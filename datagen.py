@@ -1,4 +1,5 @@
-import torch
+from __future__ import print_function
+# import torch
 from keras.preprocessing import image
 from keras.applications.resnet50 import preprocess_input
 import numpy as np
@@ -9,10 +10,11 @@ import os
 # import matplotlib.pyplot as plt
 import pudb
 from imgaug import augmenters as iaa
-from torch.utils.data import Dataset
+# from torch.utils.data import Dataset
 from copy import copy
 import matplotlib
 matplotlib.use('Agg')
+import sys
 
 import matplotlib.pyplot as plt
 
@@ -37,118 +39,156 @@ import math
 def std_norm(x):
     return math.exp(-0.5 * (x ** 2))
 
-class data_unet(Dataset):
-    def __init__(self, data):
-        data_here = copy(data)
-        data_here.sort(key = lambda x: x[0])
-        self.data = []
-        pos = 0
-        while True:
-            if pos >= len(data_here):
-                break
-            prefix = data_here[pos][0].split("/")[-1].split("_")[0]
-            temp_pos = pos
-            while True:
-                temp_pos += 1
-                if temp_pos >= len(data_here):
-                    break
-                # pu.db
-                prefix_here = data_here[temp_pos][0].split("/")[-1].split("_")[0]
-                if prefix_here != prefix:
-                    break
-            for i in range(pos, temp_pos):
-                for j in range(i + 1, temp_pos):
-                    self.data.append([data_here[i], data_here[j]])
-            pos = temp_pos
+# class data_unet(Dataset):
+#     def __init__(self, data, keypoint):
+#         self.keypoint = keypoint
+#         data_here = copy(data)
+#         data_here.sort(key = lambda x: x[0])
+#         self.data = []
+#         pos = 0
+#         while True:
+#             if pos >= len(data_here):
+#                 break
+#             prefix = data_here[pos][0].split("/")[-1].split("_")[0]
+#             temp_pos = pos
+#             while True:
+#                 temp_pos += 1
+#                 if temp_pos >= len(data_here):
+#                     break
+#                 # pu.db
+#                 prefix_here = data_here[temp_pos][0].split("/")[-1].split("_")[0]
+#                 if prefix_here != prefix:
+#                     break
+#             for i in range(pos, temp_pos):
+#                 for j in range(i + 1, temp_pos):
+#                     if data_here[j][(2 * keypoint)] != '-1' and data_here[j][(2 * keypoint) - 1] != '-1' and data_here[j][-1] == '0':
+#                         self.data.append([data_here[i], data_here[j]])
+#             pos = temp_pos
+
+#         # self.data = self.data[:1]
 
 
-    def __len__(self):
-        return len(self.data)
+#     def __len__(self):
+#         return len(self.data)
 
-    def __getitem__(self, idx):
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-        # print("idx:" +str(idx))
-        imgs = self.data[idx % len(self.data)]
-        img_1, img_2 = 0, 0
-        img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
-        img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
-
-        img_1 = resize(img_1, (256, 256, 3))
-        img_2 = resize(img_2, (256, 256, 3))
-
-        for i in range(256):
-            for j in range(256):
-                dist = (((i - 128)**2 + (j - 128)**2)**(0.5))/80
-                val = std_norm(dist)
-                img_1[i, j, :] *= val
-                img_2[i, j, :] *= val
-
-        # pu.db
-        # plt.imshow(img_1)
-        # plt.savefig("../letssee.png")
-        # plt.imshow(img_2)
-        # plt.savefig("../letssee_rot.png")
-        # print("Pics saved")
-
-        img_1 = img_1.transpose((2,0,1))
-        img_2 = img_2.transpose((2,0,1))
-
-        # print("problem is: "+str(imgs[0][-1]))
-        view_1 = int(imgs[0][-1])
-        view_2 = int(imgs[1][-1])
-        R = self.create_rot_matrix(view_1, view_1)
-        # pu.db
-        # imgs[0][0] = torch.from_numpy(np.array(img_1))
-        # imgs[1][0] = torch.from_numpy(np.array(img_2))
-        # print(imgs[0][-1])
-        # print(imgs[1][-1])
-        # print(img_1.shape)
-        # print(R.shape)
-        # print(img_2.shape)
-        # print(imgs)
-        # print(view_1)
-        # print(view_2)
-        return [img_1, R, img_2]
+#     def __getitem__(self, idx):
+#         if torch.is_tensor(idx):
+#             idx = idx.tolist()
+#         # print("idx:" +str(idx))
+#         imgs = self.data[idx % len(self.data)]
+#         img_1, img_2 = 0, 0
+#         img_1 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[0][0].split("/")[-2], imgs[0][0].split("/")[-1]))
+#         img_2 = io.imread(os.path.join('../VeRi/VeRi_with_plate/'+imgs[1][0].split("/")[-2], imgs[1][0].split("/")[-1]))
 
 
-    def abs_angle(self, pos):
-        if (pos == 0):
-            return 0.
-        elif (pos == 1):
-            return np.pi
-        elif (pos == 2):
-            return np.pi / 2
-        elif (pos == 3):
-            return np.pi / 4
-        elif (pos == 4):
-            return 3 * np.pi / 4
-        elif (pos == 5):
-            return 3 * np.pi / 2
-        elif (pos == 6):
-            return 7 * np.pi / 4
-        elif (pos == 7):
-            return 5 * np.pi / 4
-        else:
-            print("No match :(")
-            sys.exit(0)
+
+#         keypoint_loc = self.keypoint
+#         keypoint_1_x = imgs[0][(keypoint_loc * 2) - 1]
+#         keypoint_1_y = imgs[0][(keypoint_loc * 2)]
+#         keypoint_2_x = imgs[1][(keypoint_loc * 2) - 1]
+#         keypoint_2_y = imgs[1][(keypoint_loc * 2)]
+
+#         if img_2.dtype == "uint8":
+#             img_2 = np.divide(img_2, 255)
+
+#         # for i in range(img_2.shape[0]):
+#         #     for j in range(img_2.shape[1]):
+#         #         # dist_1 = (((i - int(keypoint_1_x))**2 + (j - int(keypoint_1_y))**2)**(0.5))/30
+#         #         dist_2 = (((i - int(keypoint_2_y))**2 + (j - int(keypoint_2_x))**2)**(0.5))/4
+#         #         # val_1 = std_norm(dist_1)
+#         #         val_2 = std_norm(dist_2)
+#         #         # img_1[i, j, :] *= val_1
+#         #         # pu.db
+#         #         img_2[i, j, :] *= val_2
+
+#         from_y = max(int(keypoint_2_y) - 10, 0)
+#         to_y = min(int(keypoint_2_y) + 15, img_2.shape[0])
+#         from_x = max(int(keypoint_2_x) - 15, 0)
+#         to_x = min(int(keypoint_2_x) + 10, img_2.shape[1])
+        
+#         img_2 = img_2[from_y:to_y, from_x:to_x, :]
+#         # pu.db
+#         img_1 = resize(img_1, (256, 256, 3))
+#         try:
+#             img_2 = resize(img_2, (32, 32, 3))
+#         except:
+#             print("idx_here: "+str(idx))
+#             sys.exit(0)
+#             # pu.db
+
+#         for i in range(256):
+#             for j in range(256):
+#                 dist_1 = (((i - 128)**2 + (j - 128)**2)**(0.5))/120
+#                 # dist_2 = (((i - int(keypoint_2_y))**2 + (j - int(keypoint_2_x))**2)**(0.5))/4
+#                 val_1 = std_norm(dist_1)
+#                 # val_2 = std_norm(dist_2)
+#                 img_1[i, j, :] *= val_1
+#                 # pu.db
+#                 # img_2[i, j, :] *= val_2
+#         # print("problem is: "+str(imgs[0][-1]))
+#         view_1 = int(imgs[0][-1])
+#         view_2 = int(imgs[1][-1])
+#         # plt.imshow(img_1)
+#         # plt.savefig("../letssee.png")
+#         # plt.imshow(img_2)
+#         # plt.savefig("../letssee_rot.png")
+#         # print("Pics saved")
+#         # pu.db
+#         R = self.create_rot_matrix(view_1, view_2)
+#         # pu.db
+#         img_1 = img_1.transpose((2,0,1))
+#         img_2 = img_2.transpose((2,0,1))
+#         # pu.db
+#         # imgs[0][0] = torch.from_numpy(np.array(img_1))
+#         # imgs[1][0] = torch.from_numpy(np.array(img_2))
+#         # print(imgs[0][-1])
+#         # print(imgs[1][-1])
+#         # print(img_1.shape)
+#         # print(R.shape)
+#         # print(img_2.shape)
+#         # print(imgs)
+#         # print(view_1)
+#         # print(view_2)
+#         return [img_1, R, img_2]
 
 
-    def get_angle_diff(self, init_pos, final_pos):
-        # pu.db
-        ang = - (self.abs_angle(final_pos) - self.abs_angle(init_pos))
-        # if (ang < 0):
-        #     ang = 2 * np.pi - ang
-        return ang
+#     def abs_angle(self, pos):
+#         if (pos == 0):
+#             return 0.
+#         elif (pos == 1):
+#             return np.pi
+#         elif (pos == 2):
+#             return np.pi / 2
+#         elif (pos == 3):
+#             return np.pi / 4
+#         elif (pos == 4):
+#             return 3 * np.pi / 4
+#         elif (pos == 5):
+#             return 3 * np.pi / 2
+#         elif (pos == 6):
+#             return 7 * np.pi / 4
+#         elif (pos == 7):
+#             return 5 * np.pi / 4
+#         else:
+#             print("No match :(")
+#             sys.exit(0)
 
-    def create_rot_matrix(self, init_pos, final_pos):
-        ang = self.get_angle_diff(init_pos, final_pos)
-        R = np.array([[np.cos(ang), -np.sin(ang), 0, 0],\
-                      [np.sin(ang),  np.cos(ang), 0, 0],\
-                      [0, 0, 1, 0],\
-                      [0, 0, 0, 1]])
 
-        return R
+#     def get_angle_diff(self, init_pos, final_pos):
+#         # pu.db
+#         ang = - (self.abs_angle(final_pos) - self.abs_angle(init_pos))
+#         # if (ang < 0):
+#         #     ang = 2 * np.pi - ang
+#         return ang
+
+#     def create_rot_matrix(self, init_pos, final_pos):
+#         ang = self.get_angle_diff(init_pos, final_pos)
+#         R = np.array([[np.cos(ang), -np.sin(ang), 0, 0],\
+#                       [np.sin(ang),  np.cos(ang), 0, 0],\
+#                       [0, 0, 1, 0],\
+#                       [0, 0, 0, 1]])
+
+#         return R
 
 
 
@@ -572,7 +612,6 @@ def get_data_hot_wild_ratio(image_filenames, type_dict, files, files_pair, input
                 count = 0
                 yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
 
-
 def get_data_hot_wild_ratio_pred(image_filenames, type_dict, files, files_pair, input_shape, batch_size, ratio = 0.1, tv = 't'):
     j = 0
     X = []
@@ -581,7 +620,7 @@ def get_data_hot_wild_ratio_pred(image_filenames, type_dict, files, files_pair, 
     while True:
         j = 0
         while j < len(files_pair):
-            print( str(j)+"/"+str(len(files_pair)))
+            print( str(j)+"/"+str(len(files_pair)), end = "\r")
             label = [0,1]
             if (count == 0):
                 X = []
@@ -635,8 +674,9 @@ def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files
     count = 0
     # while True:
     #     j = 0
+    print()
     while j < len(files_pair):
-        print( str(j)+"/"+str(len(files_pair)))
+        print( str(j)+"/"+str(len(files_pair)), end = "\r")
         label = [0,1]
         if (count == 0):
             X = []
@@ -676,11 +716,11 @@ def get_data_hot_wild_ratio_pred_noninf(image_filenames, type_dict, files, files
 
         # batch_y = labels[idx * batch_size:(idx + 1) * batch_size]
 
-        if (old_j != j or count >= len(files_pair)):
+        if (count >= batch_size or count >= len(files_pair)):
             X_arr = np.array(X)
             count = 0
             yield ([X_arr[:,0], X_arr[:,1]], np.array(Y))
-            print(("\n\nResume iter\n\n"))
+            # print(("\n\nResume iter\n\n"))
             old_j = j
 
 

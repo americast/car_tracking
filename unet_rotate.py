@@ -19,7 +19,7 @@ from model import *
 matplotlib.use('Agg')
 
 
-BATCH_SIZE = 100
+BATCH_SIZE = 200
 EPOCHS = 50
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -45,8 +45,12 @@ print("Data loading starts")
 # for i_batch, sample_batched in enumerate(dataloader):
 #     pu.db
 print("Data loading complete")
-data = data_unet(files[:1000])
-# data[400]
+data = data_unet(files[:100], 8)
+# print(len(data))
+# for i in reversed(range(len(data))):
+#     print(str(i)+"            ",end="\r")
+#     data[i]
+data[0]
 dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle = True, num_workers = 40, pin_memory=True)
 net = unet_torch().to(device)
 

@@ -32,7 +32,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import auc
 
 EPOCHS = 10000
-batch_size = 16
+batch_size = 200
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
@@ -181,7 +181,7 @@ while True:
         break
     files.append(l.strip())
 files.sort()
-files = files[:200]
+files = files[:100]
 files_perm = copy(files)
 random.shuffle(files_perm)
 files_first_name = [f.split("/")[0] for f in files]
@@ -216,7 +216,7 @@ while True:
         f_val.close()
         break
     files_val.append(l_val.strip())
-files_val = files_val[:200]
+files_val = files_val[:100]
 files_val.sort()
 # pu.db
 files_perm_val = copy(files_val)
@@ -278,8 +278,8 @@ out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 model = Model([input_a, input_b], out)
 if choice != 'n' and choice != 'N':
     model.load_weights(choice)
-# model_gpu = multi_gpu_model(model, gpus=4)
-model_gpu = model
+model_gpu = multi_gpu_model(model, gpus=4)
+# model_gpu = model
 
 # train
 learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 10}
@@ -445,8 +445,8 @@ else:
             x_starts = list(np.zeros((len(y_org))))
             y_starts = list(np.zeros((len(y_org))))
             y_pred_list = list(np.zeros((len(y_org))))
-            for x_start in range(224 - 10):
-                for y_start in range(224 - 10):
+            for x_start in range(0, 224 - 10, 10):
+                for y_start in range(0, 224 - 10, 10):
                     data_in = deepcopy(data[0])
                     for i, __ in enumerate(y_org):
                         if __ == 1:
@@ -467,10 +467,12 @@ else:
                 if __ == 1:
                     img = data[0][0][i]
                     img[0+x_starts[i]:10+x_starts[i], 0+y_starts[i]:10+y_starts[i], :] = zero_arr
-                    
+            
             acc = model_gpu.fit(data[0], data[1])
 
+        print()
         model.save_weights("check_weights_class_wild_ratio_occ.h5")
+        print("Saving model")
 
 
 

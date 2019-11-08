@@ -27,6 +27,8 @@ from copy import copy
 import pudb
 from datagen import *
 from utils import *
+from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import auc
 
 EPOCHS = 10000
 batch_size = 16
@@ -195,9 +197,9 @@ for i in range(1, len(files_first_name)):
 type_dict[files_first_name[-1]] = (i_start, len(files_first_name))
 
 files_all_pairs = []
-for i in xrange(len(files)):
+for i in range(len(files)):
     range_here = type_dict[files[i].split("/")[0]]
-    for j in xrange(range_here[0], range_here[1]):
+    for j in range(range_here[0], range_here[1]):
         if i == j: continue
         files_all_pairs.append(tuple(sorted([files[i], files[j]])))
 # pu.db
@@ -213,7 +215,7 @@ while True:
         f_val.close()
         break
     files_val.append(l_val.strip())
-files_val = files_val[:1000]
+# files_val = files_val[:100]
 files_val.sort()
 # pu.db
 files_perm_val = copy(files_val)
@@ -232,9 +234,9 @@ for i_val in range(1, len(files_first_name_val)):
 type_dict_val[files_first_name_val[-1]] = (i_start_val, len(files_first_name_val))
 
 files_all_pairs_val = []
-for i in xrange(len(files_val)):
+for i in range(len(files_val)):
     range_here = type_dict_val[files_val[i].split("/")[0]]
-    for j in xrange(range_here[0], range_here[1]):
+    for j in range(range_here[0], range_here[1]):
         if i == j: continue
         files_all_pairs_val.append(tuple(sorted([files_val[i], files_val[j]])))
 
@@ -275,8 +277,8 @@ out = Dense(2, activation='softmax', name="cat_dense_out")(hid_cat)
 model = Model([input_a, input_b], out)
 if choice != 'n' and choice != 'N':
     model.load_weights(choice)
-model_gpu = multi_gpu_model(model, gpus=4)
-# model_gpu = model
+# model_gpu = multi_gpu_model(model, gpus=4)
+model_gpu = model
 
 # train
 learning_rate_multipliers = {"cat_dense_1": 10, "cat_dense_2": 10, "cat_dense_3": 10, "cat_dense_out": 10}
@@ -301,70 +303,133 @@ print(model_gpu.summary())
 #                                    save_best_only = True)
 print("Here")
 acc_hist = 0.0
-
+y_pred_net = []
+y_org_net = []
 # pu.db
 if tv == 'v' or tv == 'V':
     print("Pred start")
-    avg_precisions = []
+    # avg_precisions = []
     precisions = []
     recalls = []
+    k = []
+    res_dict = {}
     # pu.db
     for data in get_data_hot_wild_ratio_pred_noninf(files_perm_val, type_dict_val, files_val, files_all_pairs_val, input_shape, batch_size, tv = 'v'):
         Y_pred = model_gpu.predict(data[0])
-        # pu.db
-        y_pred = np.argmax(Y_pred, axis=1)
+        y_pred = []
+        for each in Y_pred:
+            if each[1] > 0.3:
+                y_pred.append(each[1])
+            else:
+                y_pred.append(0)
+        # y_pred = np.argmax(Y_pred, axis=1)
         y_org = np.argmax(data[1], axis=1)
-
-        ind_ones_pred = np.where(y_pred == 1)
-        ind_ones_pred_false = np.where(y_pred == 0)
-        ind_ones_org = np.where(y_org == 1)
-        ind_ones_org_false = np.where(y_org == 0)
-
-        TP = len(np.intersect1d(ind_ones_org, ind_ones_pred))
-        FP = len(np.intersect1d(ind_ones_org_false, ind_ones_pred))
-        TN = len(np.intersect1d(ind_ones_org_false, ind_ones_pred_false))
-        FN = len(np.intersect1d(ind_ones_org, ind_ones_pred_false))
-
-        try:
-            precision = float(TP) / (TP + FP + 1e-06)
-        except:
-            precision = 1.0
-        try:
-            recall = float(TP) / (TP + FN + 1e-06)
-        except:
-            recall = 0.0
-
-        Y_pred_one_only = Y_pred[y_pred == 1]
-        y_org_sorted = y_org[y_pred == 1]
-
+        y_pred_net.extend(y_pred)
+        y_org_net.extend(y_org)
+        for i in range(len(y_pred)):
+            sum_here = sum(sum(sum(data[0][0][i])))
+            if sum_here not in res_dict:
+                res_dict[sum_here] = [[],[]]
+            res_dict[sum_here][0].extend(y_pred)
+            res_dict[sum_here][1].extend(y_org)
         # pu.db
+        # ind_ones_pred = np.where(y_pred == 1)
+        # ind_ones_pred_false = np.where(y_pred == 0)
+        # ind_ones_org = np.where(y_org == 1)
+        # ind_ones_org_false = np.where(y_org == 0)
+
+        # TP = len(np.intersect1d(ind_ones_org, ind_ones_pred))
+        # FP = len(np.intersect1d(ind_ones_org_false, ind_ones_pred))
+        # TN = len(np.intersect1d(ind_ones_org_false, ind_ones_pred_false))
+        # FN = len(np.intersect1d(ind_ones_org, ind_ones_pred_false))
+
+        # try:
+        #     precision = float(TP) / (TP + FP + 1e-06)
+        # except:
+        #     precision = 1.0
+        # try:
+        #     recall = float(TP) / (TP + FN + 1e-06)
+        # except:
+        #     recall = 0.0
+
+        # Y_pred_one_only = Y_pred[y_pred == 1]
+        # y_org_sorted = y_org[y_pred == 1]
+
+        # # pu.db
+        # try:
+        #     Y_pred_one_only, y_org_sorted = zip(*sorted(zip(Y_pred_one_only, y_org_sorted), reverse = True))
+        # except: pass
+
+        # precisions_here = []
+        # pred_good = 0
+
+        # for i in range(len(Y_pred_one_only)):
+        #     if (y_org_sorted[i] == 1):
+        #         pred_good += 1
+        #     precisions_here.append(float(pred_good)/(i+1))
+
+        # try:
+        #     avg_precisions.append(sum(precisions_here)/len(precisions_here))
+        #     # if sum(precisions_here)/len(precisions_here) == 0:
+        #     #     pu.db
+        # except:
+        #     avg_precisions.append(0.0)
+
+        # precisions.append(precision)
+        # recalls.append(recall)
+
+    # pu.db
+    aps = []
+    for each in res_dict:
+        y_pred = res_dict[each][0]
+        y_org = res_dict[each][1]
+        tot = [(y_pred[i], y_org[i]) for i in range(len(y_pred))]
+        tot.sort(key = lambda x:x[0])
+        y_pred = [x[0] for x in tot]
+        y_org = [x[1] for x in tot]
+        y_org_net_here = []
+        y_pred_net_here = []
+        tot_p = []
+        tot_r = []
+        for i in range(len(y_pred)):
+            if y_pred > 0.3:
+                y_pred_net_here.append(1)
+            else:
+                y_pred_net_here.append(0)
+            # for j, _ in enumerate(y_pred_net_here):
+            #     if _ > 0.3:
+            #         y_pred_net_here[j] = 1
+            y_org_net_here.append(y_org[i])
+            scores = precision_recall_fscore_support(y_org_net_here, y_pred_net_here, average=None, labels=[1])
+            tot_p.append(scores[0])
+            tot_r.append(scores[1])
+        tog = [(tot_p[i], tot_r[i]) for i in range(len(tot_p))]
+        tog.sort(key = lambda x:x[1])
+        tot_p = [x[0] for x in tog]
+        tot_r = [x[1] for x in tog]
         try:
-            Y_pred_one_only, y_org_sorted = zip(*sorted(zip(Y_pred_one_only, y_org_sorted), reverse = True))
-        except: pass
-
-        precisions_here = []
-        pred_good = 0
-
-        for i in range(len(Y_pred_one_only)):
-            if (y_org_sorted[i] == 1):
-                pred_good += 1
-            precisions_here.append(float(pred_good)/(i+1))
-
-        try:
-            avg_precisions.append(sum(precisions_here)/len(precisions_here))
-            # if sum(precisions_here)/len(precisions_here) == 0:
-            #     pu.db
+            k = auc(tot_r, tot_p)
+            aps.append(k)
         except:
-            avg_precisions.append(0.0)
+            pass
 
-        precisions.append(precision)
-        recalls.append(recall)
-        
+
+
+
+    # scores = precision_recall_fscore_support(y_org_net, y_pred_net, average=None, labels=[1])
+    # precisions.append(scores[0])
+    # recalls.append(scores[1])
+    # tog = [(precisions[i], recalls[i]) for i in range(len(precisions))]
+    # tog.sort(key=lambda x:x[1])
+    # precisions = [x[0] for x in tog]
+    # recalls = [x[1] for x in tog]
     pu.db
+    # k = auc(recalls, precisions)
+        # pu.db
 
 else:
-    for _ in xrange(EPOCHS):
-        print _
+    for _ in range(EPOCHS):
+        print(_)
         # if _ >= 0:
         #     for x in get_data_hot_wild_ratio(files_perm_val, type_dict_val, files_val, input_shape, batch_size, 'v'):
         #       print "Prediction: "
@@ -386,7 +451,11 @@ else:
         # pu.db
         if acc.history['acc'][0] > acc_hist:
             print("Saving model")
-            model.save_weights("check_weights_class_wild_ratio.h5")
+            if choice.lower() == "n":
+                model.save_weights("check_weights_class_wild_ratio.h5")
+            else:
+                model.save_weights(choice)
+
             acc_hist = acc.history['acc'][0]
         # model.save_weights("check_weights_class.h5")
         # pu.db
